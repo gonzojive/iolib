@@ -59,6 +59,9 @@
 (defgeneric exit-event-loop (event-base &key delay))
 
 (defgeneric event-base-empty-p (event-base))
+
+(defgeneric close-event-base (event-base &key abort)
+  (:documentation "Closes the event-base.  The details are up to the implementing method."))
 
 
 ;;;-------------------------------------------------------------------------
@@ -73,12 +76,10 @@
 ;;;-------------------------------------------------------------------------
 ;;; CLOSE
 ;;;-------------------------------------------------------------------------
-
-;;; KLUDGE: CLOSE is for streams. --luis
 ;;;
 ;;; Also, we might want to close FDs here.  Or have a version/argument
 ;;; that handles that.  Or... add finalizers to the fd streams.
-(defmethod close ((event-base event-base) &key abort)
+(defmethod close-event-base ((event-base event-base) &key abort)
   (declare (ignore abort))
   (close-multiplexer (mux-of event-base))
   (dolist (slot '(mux fds timers fd-timers expired-events))
@@ -96,7 +97,7 @@ within the extent of BODY.  Closes VAR."
   `(let ((,var (make-instance 'event-base ,@initargs)))
      (unwind-protect
           (locally ,@body)
-       (when ,var (close ,var)))))
+       (when ,var (close-event-base ,var)))))
 
 
 ;;;-------------------------------------------------------------------------

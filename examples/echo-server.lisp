@@ -105,7 +105,7 @@
                   (with-open-stream (sock (start-echo-server host port))
                     (iomux:event-dispatch *event-base* :timeout timeout)))
              (close-all-sockets)
-             (close *event-base*))))
+             (close-event-base *event-base*))))
     (let ((iolib.sockets:*ipv6* nil))
       (if new-process
           (bt:make-thread #'%run-server)

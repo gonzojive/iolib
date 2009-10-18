@@ -23,6 +23,7 @@
    #:*default-multiplexer*
    #:*default-event-loop-timeout*
    #:add-timer
+   #:close-event-base
    #:event-base-empty-p
    #:event-dispatch
    #:exit-event-loop
