@@ -1,10 +1,8 @@
 ;;;; -*- Mode: Lisp; Syntax: ANSI-Common-Lisp; indent-tabs-mode: nil -*-
 
-(in-package :common-lisp-user)
-
-(asdf:defsystem :iolib.streams
+(defsystem :iolib.streams
   :description "Gray streams."
-  :maintainer "Stelian Ionescu <sionescu@common-lisp.net>"
+  :maintainer "Stelian Ionescu <sionescu@cddr.org>"
   :licence "MIT"
   :depends-on (:iolib.base :iolib.multiplex :cffi :trivial-garbage)
   :pathname (merge-pathnames #p"streams/gray/" *load-truename*)
@@ -14,5 +12,8 @@
    (:file "conditions" :depends-on ("pkgdcl"))
    (:file "buffer" :depends-on ("pkgdcl" "classes"))
    (:file "fd-mixin" :depends-on ("pkgdcl" "classes"))
+   (:file "io-helpers"
+     :depends-on ("pkgdcl" "classes" "conditions" "buffer" "fd-mixin"))
    (:file "gray-stream-methods"
-          :depends-on ("pkgdcl" "classes" "conditions" "buffer" "fd-mixin"))))
+     :depends-on ("pkgdcl" "classes" "conditions" "buffer" "fd-mixin"
+                  "io-helpers"))))

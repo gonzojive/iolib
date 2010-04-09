@@ -12,98 +12,105 @@
               :initform (make-hash-table :test #'equal)
               :accessor environment-variables)))
 
-(defun %envar (env name)
+(defmethod print-object ((env environment) stream)
+  (print-unreadable-object (env stream :type t :identity nil)
+    (let ((keys (sort (hash-table-keys (environment-variables env))
+                      #'string-lessp)))
+      (if keys
+          (format stream "~A variables: ~S ... ~S"
+                  (length keys)
+                  (car keys) (lastcar keys))
+          (format stream "empty")))))
+
+(declaim (inline %obj-getenv %obj-setenv %obj-unsetenv %obj-clearenv))
+
+(defun %obj-getenv (env name)
   (gethash name (environment-variables env)))
 
-(defun (setf %envar) (value env name)
-  (setf (gethash name (environment-variables env))
-        value))
+(defun %obj-setenv (env name value overwrite)
+  (when (or overwrite
+            (not (nth-value 1 (%obj-getenv env name))))
+    (setf (gethash name (environment-variables env))
+          value)))
 
-(defun %remvar (env name)
+(defun %obj-unsetenv (env name)
   (remhash name (environment-variables env)))
 
-(defun environment-variable (name &key env)
+(defun %obj-clearenv (env)
+  (clrhash (environment-variables env)))
+
+(defun environment-variable (name &optional env)
   "ENVIRONMENT-VARIABLE returns the environment variable
-identified by NAME, or NIL if one does not exist.  NAME can
-either be a symbol or a string.
+identified by NAME, or NIL if one does not exist. NAME can
+either be a symbol or a string."
+  (let ((name (string name)))
+    (etypecase env
+      (null
+       (isys:getenv name))
+      (environment
+       (%obj-getenv env name)))))
 
-SETF ENVIRONMENT-VARIABLE sets the environment variable
-identified by NAME to VALUE.  Both NAME and VALUE can be either a
+(defun (setf environment-variable) (value name &optional env &key (overwrite t))
+  "SETF ENVIRONMENT-VARIABLE sets the environment variable
+identified by NAME to VALUE. Both NAME and VALUE can be either a
 symbols or strings. Signals an error on failure."
-  (let ((name (string name)))
-    (cond
-      (env
-       (check-type env environment)
-       (%envar env name))
-      (t
-       (isys:%sys-getenv name)))))
+  (let ((value (string value))
+        (name (string name)))
+    (etypecase env
+      (null
+       (isys:setenv name value overwrite))
+      (environment
+       (%obj-setenv env name value overwrite)))
+    value))
 
-(defun (setf environment-variable) (value name &key env (overwrite t))
-  (check-type value string)
-  (let ((name (string name)))
-    (cond
-      (env
-       (check-type env environment)
-       (when (or overwrite
-                 (null (nth-value 1 (%envar env name))))
-         (setf (%envar env name) value)))
-      (t
-       (isys:%sys-setenv (string name) value overwrite))))
-  value)
-
-(defun makunbound-environment-variable (name &key env)
+(defun makunbound-environment-variable (name &optional env)
   "Removes the environment variable identified by NAME from the
-current environment.  NAME can be either a string or a symbol.
-Returns the string designated by NAME.  Signals an error on
+current environment. NAME can be either a string or a symbol.
+Returns the string designated by NAME. Signals an error on
 failure."
   (let ((name (string name)))
-    (cond
-      (env
-       (check-type env environment)
-       (%remvar env name))
-      (t
-       (isys:%sys-unsetenv (string name)))))
-  (values name))
+    (etypecase env
+      (null
+       (isys:unsetenv name))
+      (environment
+       (%obj-unsetenv env name)))
+    name))
 
-(defun %environment ()
-  (loop :with env := (make-instance 'environment)
-        :for i :from 0 :by 1
-        :for string := (mem-aref isys:*environ* :string i)
-        :for split := (position #\= string)
-        :while string :do
-        (let ((var (subseq string 0 split))
-              (val (subseq string (1+ split))))
-          (setf (environment-variable var :env env) val))
-        :finally (return env)))
+(defun clear-environment (&optional env)
+  "Removes all variables from an environment."
+  (etypecase env
+    (null
+     (isys:clearenv))
+    (environment
+     (%obj-clearenv env)
+     env)))
 
-(defun environment (&optional env)
-  "If ENV is non-NIL, ENVIRONMENT copies ENV, otherwise returns the
-current global environment.
-SETF ENVIRONMENT replaces the contents of the global environment
+(defun environment ()
+  "Return the current global environment."
+  (let ((env (make-instance 'environment))
+        (envptr isys:*environ*))
+    (unless (null-pointer-p envptr)
+      (loop :for i :from 0 :by 1
+            :for string := (mem-aref envptr :string i)
+            :for split := (position #\= string)
+            :while string :do
+            (let ((name (subseq string 0 split))
+                  (value (subseq string (1+ split))))
+              (%obj-setenv env name value t))))
+    env))
+
+(defun (setf environment) (newenv)
+  "SETF ENVIRONMENT replaces the contents of the global environment
 with that of its argument.
 
 Often it is preferable to use SETF ENVIRONMENT-VARIABLE and
 MAKUNBOUND-ENVIRONMENT-VARIABLE to modify the environment instead
 of SETF ENVIRONMENT."
-  (cond
-    (env
-     (check-type env environment)
-     (make-instance 'environment
-                    :variables (copy-hash-table
-                                (environment-variables env))))
-    (t
-     (%environment))))
-
-(defun (setf environment) (newenv)
   (check-type newenv environment)
-  (let ((oldenv (environment)))
-    (maphash (lambda (k v)
-               (setf (environment-variable k) v)
-               (makunbound-environment-variable k :env oldenv))
-             (environment-variables newenv))
-    (maphash (lambda (k v) (declare (ignore v))
-               (makunbound-environment-variable k))
-             (environment-variables oldenv)))
+  (isys:clearenv)
+  (maphash (lambda (name value)
+             (isys:setenv name value t))
+           (environment-variables newenv))
   newenv)
 
 
@@ -112,19 +119,18 @@ of SETF ENVIRONMENT."
 (defun current-directory ()
   "CURRENT-DIRECTORY returns the operating system's current
 directory, which may or may not correspond to
-*DEFAULT-FILE-PATH-DEFAULTS*.
-
-SETF CURRENT-DIRECTORY changes the operating system's current
-directory to the PATHSPEC.  An error is signalled if PATHSPEC
-is not a directory."
-  (let ((cwd (isys:%sys-getcwd)))
+*DEFAULT-FILE-PATH-DEFAULTS*."
+  (let ((cwd (isys:getcwd)))
     (if cwd
         (parse-file-path cwd :expand-user nil)
         (isys:syscall-error "Could not get current directory."))))
 
 (defun (setf current-directory) (pathspec)
+  "SETF CURRENT-DIRECTORY changes the operating system's current
+directory to the PATHSPEC. An error is signalled if PATHSPEC
+is not a directory."
   (let ((path (file-path pathspec)))
-    (isys:%sys-chdir (file-path-namestring path))))
+    (isys:chdir (file-path-namestring path))))
 
 (defmacro with-current-directory (pathspec &body body)
   (with-gensyms (old)
@@ -165,7 +171,7 @@ is not a directory."
 
 (defun resolve-symlinks (path)
   (let* ((namestring (file-path-namestring path))
-         (realpath (isys:%sys-realpath namestring)))
+         (realpath (isys:realpath namestring)))
     (parse-file-path realpath)))
 
 (defun resolve-file-path (pathspec &key
@@ -193,8 +199,8 @@ then just remove «.» and «..», otherwise symlinks are resolved too."
     (handler-case
         (let ((mode (isys:stat-mode
                      (if follow-p
-                         (isys:%sys-stat namestring)
-                         (isys:%sys-lstat namestring)))))
+                         (isys:stat namestring)
+                         (isys:lstat namestring)))))
           (switch ((logand isys:s-ifmt mode) :test #'=)
             (isys:s-ifdir  :directory)
             (isys:s-ifchr  :character-device)
@@ -210,7 +216,7 @@ then just remove «.» and «..», otherwise symlinks are resolved too."
           ;; or it is a broken symlink
           (follow-p
            (handler-case
-               (isys:%sys-lstat namestring)
+               (isys:lstat namestring)
              ((or isys:enoent isys:eloop) ())
              (:no-error (stat)
                (declare (ignore stat))
@@ -220,7 +226,7 @@ then just remove «.» and «..», otherwise symlinks are resolved too."
 
 (defun file-kind (pathspec &key follow-symlinks)
   "Returns a keyword indicating the kind of file designated by PATHSPEC,
-or NIL if the file does not exist.  Does not follow symbolic
+or NIL if the file does not exist. Does not follow symbolic
 links by default.
 
 Possible file-kinds in addition to NIL are: :REGULAR-FILE,
@@ -237,7 +243,7 @@ it also checks the file kind. If the tests succeed, return two values:
 truename and file kind of PATHSPEC, NIL otherwise.
 Follows symbolic links."
   (let* ((path (file-path pathspec))
-         (follow (unless (eq file-kind :symbolic-link) t))
+         (follow (unless (eql :symbolic-link file-kind) t))
          (actual-kind (file-kind path :follow-symlinks follow)))
     (when (and actual-kind
                (if file-kind (eql file-kind actual-kind) t))
@@ -252,14 +258,14 @@ if this is the case, NIL otherwise. Follows symbolic links."
 
 (defun directory-exists-p (pathspec)
   "Checks whether the file named by the file-path designator
-PATHSPEC exists and is a directory.  Returns its truename
-if this is the case, NIL otherwise.  Follows symbolic links."
+PATHSPEC exists and is a directory. Returns its truename
+if this is the case, NIL otherwise. Follows symbolic links."
   (nth-value 0 (file-exists-p pathspec :directory)))
 
 (defun good-symlink-exists-p (pathspec)
   "Checks whether the file named by the file-path designator
 PATHSPEC exists and is a symlink pointing to an existent file."
-  (eq :broken (nth-value 1 (file-kind pathspec :follow-symlinks t))))
+  (eql :broken (nth-value 1 (file-kind pathspec :follow-symlinks t))))
 
 
 ;;;; Temporary files
@@ -275,15 +281,15 @@ PATHSPEC exists and is a symlink pointing to an existent file."
 
 (defun read-symlink (pathspec)
   "Returns the file-path pointed to by the symbolic link
-designated by PATHSPEC.  If the link is relative, then the
+designated by PATHSPEC. If the link is relative, then the
 returned file-path is relative to the link, not
 *DEFAULT-FILE-PATH-DEFAULTS*.
 
 Signals an error if PATHSPEC is not a symbolic link."
   ;; Note: the previous version tried much harder to provide a buffer
-  ;; big enough to fit the link's name.  OTOH, %SYS-READLINK stack
+  ;; big enough to fit the link's name. OTOH, %SYS-READLINK stack
   ;; allocates on most lisps.
-  (file-path (isys:%sys-readlink
+  (file-path (isys:readlink
               (file-path-namestring
                (absolute-file-path pathspec *default-file-path-defaults*)))))
 
@@ -291,7 +297,7 @@ Signals an error if PATHSPEC is not a symbolic link."
   "Creates symbolic LINK that points to TARGET.
 Returns the file-path of the link.
 
-Relative targets are resolved against the link.  Relative links
+Relative targets are resolved against the link. Relative links
 are resolved against *DEFAULT-FILE-PATH-DEFAULTS*.
 
 Signals an error if TARGET does not exist, or LINK exists already."
@@ -299,7 +305,7 @@ Signals an error if TARGET does not exist, or LINK exists already."
         (target (file-path target)))
     (with-current-directory
         (absolute-file-path *default-file-path-defaults* nil)
-      (isys:%sys-symlink (file-path-namestring target)
+      (isys:symlink (file-path-namestring target)
                          (file-path-namestring link))
       link)))
 
@@ -307,7 +313,7 @@ Signals an error if TARGET does not exist, or LINK exists already."
   "Creates hard LINK that points to TARGET.
 Returns the file-path of the link.
 
-Relative targets are resolved against the link.  Relative links
+Relative targets are resolved against the link. Relative links
 are resolved against *DEFAULT-FILE-PATH-DEFAULTS*.
 
 Signals an error if TARGET does not exist, or LINK exists already."
@@ -315,7 +321,7 @@ Signals an error if TARGET does not exist, or LINK exists already."
         (target (file-path target)))
     (with-current-directory
         (absolute-file-path *default-file-path-defaults* nil)
-      (isys:%sys-link (file-path-namestring
+      (isys:link (file-path-namestring
                        (merge-file-paths target link))
                       link)
       link)))
@@ -353,13 +359,13 @@ Permission symbols consist of :USER-READ, :USER-WRITE, :USER-EXEC,
 
 Both signal an error if PATHSPEC doesn't designate an existing file."
   (let ((mode (isys:stat-mode
-               (isys:%sys-stat (file-path-namestring pathspec)))))
+               (isys:stat (file-path-namestring pathspec)))))
     (loop :for (name . value) :in +permissions+
           :when (plusp (logand mode value))
           :collect name)))
 
 (defun (setf file-permissions) (perms pathspec)
-  (isys:%sys-chmod (file-path-namestring pathspec)
+  (isys:chmod (file-path-namestring pathspec)
                    (reduce (lambda (a b)
                              (logior a (cdr (assoc b +permissions+))))
                            perms :initial-value 0)))
@@ -374,16 +380,16 @@ to the designated directory for the dynamic scope of the body.
 
 Within the lexical scope of the body, ITERATOR is defined via
 macrolet such that successive invocations of (ITERATOR) return
-the directory entries, one by one.  Both files and directories
-are returned, except '.' and '..'.  The order of entries is not
-guaranteed.  The entries are returned as relative file-paths
-against the designated directory.  Entries that are symbolic
+the directory entries, one by one. Both files and directories
+are returned, except '.' and '..'. The order of entries is not
+guaranteed. The entries are returned as relative file-paths
+against the designated directory. Entries that are symbolic
 links are not resolved, but links that point to directories are
-interpreted as directory designators.  Once all entries have been
+interpreted as directory designators. Once all entries have been
 returned, further invocations of (ITERATOR) will all return NIL.
 
 The value returned is the value of the last form evaluated in
-body.  Signals an error if PATHSPEC is not a directory."
+body. Signals an error if PATHSPEC is not a directory."
   (with-unique-names (one-iter)
     `(call-with-directory-iterator
       ,pathspec
@@ -395,9 +401,9 @@ body.  Signals an error if PATHSPEC is not a directory."
 
 (defun call-with-directory-iterator (pathspec fn)
   (let* ((dir (resolve-file-path pathspec :canonicalize nil))
-         (dp (isys:%sys-opendir (file-path-namestring dir))))
+         (dp (isys:opendir (file-path-namestring dir))))
     (labels ((one-iter ()
-               (let ((name (isys:%sys-readdir dp)))
+               (let ((name (isys:readdir dp)))
                  (unless (null name)
                    (cond
                      ((member name '("." "..") :test #'string=)
@@ -407,11 +413,11 @@ body.  Signals an error if PATHSPEC is not a directory."
       (unwind-protect
            (let ((*default-file-path-defaults* dir))
              (funcall fn #'one-iter))
-        (isys:%sys-closedir dp)))))
+        (isys:closedir dp)))))
 
 (defun mapdir (function pathspec)
   "Applies function to each entry in directory designated by
-PATHSPEC in turn and returns a list of the results.  Binds
+PATHSPEC in turn and returns a list of the results. Binds
 *DEFAULT-FILE-PATH-DEFAULTS* to the directory designated by
 pathspec round to function call.
 
@@ -436,43 +442,41 @@ within the directory named by PATHSPEC."
                        (test (constantly t)) (key #'identity))
   "Recursively applies the function FN to all files within the
 directory named by the FILE-PATH designator DIRNAME and all of
-the files and directories contained within.  Returns T on success."
+the files and directories contained within. Returns T on success."
   (assert (<= 0 mindepth maxdepth))
   (labels ((walk (name depth parent)
-             (incf depth)
-             (let ((kind
-                    (file-kind name :follow-symlinks follow-symlinks))
-                   (name-key (funcall key name)))
-               (case kind
-                 (:directory
-                  (when (and (<= depth maxdepth)
-                             (or (zerop depth)
-                                 (funcall test name-key kind)))
-                    (ecase directories
-                      (:before
-                       (when (< mindepth depth)
-                         (callfn name-key kind (or parent (list "."))))
-                       (walkdir name depth parent))
-                      (:after
-                       (walkdir name depth parent)
-                       (when (< mindepth depth)
-                         (callfn name-key kind (or parent (list "."))))))))
-                 (t (when (and (funcall test name-key kind)
-                               (< mindepth depth))
-                      (callfn name-key kind (or parent (list ".")))))))
-             (decf depth))
+             (let* ((kind
+                     (file-kind name :follow-symlinks follow-symlinks))
+                    (name-key (funcall key name)))
+               (flet ((maybe-callfn ()
+                        (when (and (<= mindepth depth maxdepth)
+                                   (funcall test name-key kind))
+                          (callfn name-key kind parent depth)))
+                      (maybe-walkdir ()
+                        (when (or (< depth mindepth)
+                                  (and (< depth maxdepth)
+                                       (funcall test name-key kind)))
+                          (walkdir name depth parent))))
+                 (case kind
+                   (:directory
+                    (when (eql :before directories) (maybe-callfn))
+                    (maybe-walkdir)
+                    (when (eql :after directories) (maybe-callfn)))
+                   (t (maybe-callfn))))))
            (walkdir (name depth parent)
              (mapdir (lambda (dir)
                        (walk dir (1+ depth)
-                             (if (plusp depth)
-                                 (cons (file-path-file name) parent)
-                                 parent)))
+                             (cond
+                               ((zerop depth) (list "."))
+                               ((plusp depth)
+                                (cons (file-path-file name) parent))
+                               (t parent))))
                      name))
-           (callfn (key kind parent)
+           (callfn (key kind parent depth)
              (restart-case
                  (let ((parent
                         (and parent (make-file-path :components (reverse parent)))))
-                   (funcall fn key kind parent))
+                   (funcall fn key kind parent depth))
                (ignore-file-system-error ()
                  :report "Ignore file system error and continue"))))
     (let* ((directory (file-path directory))
@@ -489,22 +493,15 @@ the files and directories contained within.  Returns T on success."
                                     directory)))))
       (unless (eql :directory kind)
         (isys:syscall-error "~S is not a directory" directory))
-      (let ((name-key (funcall key directory)))
-        (ecase directories
-          (:before
-           (when (zerop mindepth) (callfn name-key :directory nil))
-           (when (plusp maxdepth) (walk directory -1 nil)))
-          (:after
-           (when (plusp maxdepth) (walk directory -1 nil))
-           (when (zerop mindepth) (callfn name-key :directory nil)))))
+      (walk directory 0 nil)
       t)))
 
 (defun delete-files (pathspec &key recursive)
   (labels ((%delete-file (file)
-             (isys:%sys-unlink (file-path-namestring
+             (isys:unlink (file-path-namestring
                                 (absolute-file-path file))))
            (%delete-directory (directory)
-             (isys:%sys-rmdir (file-path-namestring
+             (isys:rmdir (file-path-namestring
                                (absolute-file-path directory)))))
     (let* ((pathspec (file-path pathspec))
            (kind (file-kind pathspec :follow-symlinks t)))
@@ -512,8 +509,8 @@ the files and directories contained within.  Returns T on success."
         (:directory
          (if recursive
              (walk-directory pathspec
-                             (lambda (name kind parent)
-                               (declare (ignore parent))
+                             (lambda (name kind parent depth)
+                               (declare (ignore parent depth))
                                (case kind
                                  (:directory (%delete-directory name))
                                  (t          (%delete-file name))))
@@ -530,8 +527,8 @@ the files and directories contained within.  Returns T on success."
 numerical user ID, as an assoc-list."
   (multiple-value-bind (name password uid gid gecos home shell)
       (etypecase id
-        (string  (isys:%sys-getpwnam id))
-        (integer (isys:%sys-getpwuid id)))
+        (string  (isys:getpwnam id))
+        (integer (isys:getpwuid id)))
     (declare (ignore password))
     (unless (null name)
       (list (cons :name name)

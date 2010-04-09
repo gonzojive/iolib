@@ -116,7 +116,7 @@
 (defmethod %decode-response :around ((msg dns-message) question-type)
   (declare (ignore question-type))
   (let ((return-code (rcode-field msg)))
-    (if (eq :no-error return-code) ; no error
+    (if (eql :no-error return-code) ; no error
         (call-next-method)
         (values return-code))))
 
@@ -134,7 +134,7 @@
         (consumed 0))
     (loop :for i :below answer-count
           :for ans := (aref answer i) :do
-          (if (eq :cname (dns-record-type ans))
+          (if (eql :cname (dns-record-type ans))
               (setf (gethash (dns-record-name ans) cnames)
                     (dns-rr-data ans))
               (loop-finish))
@@ -245,17 +245,16 @@
              (return (values input-buffer off))))))))
 
 (defun dns-query/tcp (buffer length nameserver timeout)
-  (let* ((t0 (isys:%sys-get-monotonic-time))
+  (let* ((t0 (isys:get-monotonic-time))
          (tend (+ t0 timeout)))
     (flet ((remtime ()
-             (let ((rem (- tend (isys:%sys-get-monotonic-time))))
+             (let ((rem (- tend (isys:get-monotonic-time))))
                (if (not (minusp rem))
                    rem
                    (error 'socket-connection-timeout-error)))))
       (with-open-socket
           (socket :connect :active :type :stream
                   :ipv6 (ipv6-address-p nameserver))
-        (setf (fd-non-blocking socket) t)
         (handler-case
             (connect socket nameserver :port +dns-port+)
           (socket-connection-in-progress-error ()
@@ -312,7 +311,7 @@
       (start :udp))))
 
 (defun preprocess-dns-name (name type)
-  (if (eq :ptr type)
+  (if (eql :ptr type)
       (dns-ptr-name name)
       name))
 

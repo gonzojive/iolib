@@ -3,7 +3,7 @@
 ;;; --- Error conditions.
 ;;;
 
-(in-package :iolib.zeta-streams)
+(in-package :iolib.zstreams)
 
 (define-condition posix-file-error (file-error)
   ((action :initarg :action :reader posix-file-error-action)
@@ -13,7 +13,7 @@
              (format stream "Error while ~A ~S: ~A"
                      (posix-file-error-action condition)
                      (file-error-pathname condition)
-                     (%sys-strerror (posix-file-error-code condition))))))
+                     (isys:strerror (posix-file-error-code condition))))))
 
 (defun posix-file-error (syscall-error filename action)
   (error 'posix-file-error

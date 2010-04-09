@@ -16,7 +16,7 @@
 
 (defparameter *port* 9999)
 (defvar *event-base* nil)
-(defvar *sockets* (make-hash-table))
+(defvar *sockets* ())
 (defvar *counter* 0)
 
 (defun add-socket (socket)
@@ -27,7 +27,8 @@
 
 (defun close-socket (socket)
   (let ((fd (iolib.sockets:socket-os-fd socket)))
-    (ignore-errors (iomux:remove-fd-handlers *event-base* fd))
+    (ignore-some-conditions (isys:syscall-error)
+      (iomux:remove-fd-handlers *event-base* fd))
     (remove-socket socket)
     (close socket)))
 
@@ -60,9 +61,9 @@
 
 (defun make-listener-handler (socket)
   (lambda (fd event exception)
-    (declare (ignore fd exception))
+    (declare (ignore fd event))
     (block nil
-      (when (eql :timeout event)
+      (when (eql :timeout exception)
         (warn "Got a server timeout!")
         (return))
       (let ((client (iolib.sockets:accept-connection socket)))
@@ -84,7 +85,6 @@
     (unwind-protect-case ()
         (progn
           (setf (iolib.streams:fd-non-blocking socket) t)
-          (add-socket socket)
           (iomux:set-io-handler *event-base*
                                 (iolib.sockets:socket-os-fd socket)
                                 :read
@@ -103,6 +103,7 @@
                 (progn
                   (setf *event-base* (make-instance 'iomux:event-base))
                   (with-open-stream (sock (start-echo-server host port))
+                    (declare (ignorable sock))
                     (iomux:event-dispatch *event-base* :timeout timeout)))
              (close-all-sockets)
              (close-event-base *event-base*))))

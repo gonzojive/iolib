@@ -19,7 +19,7 @@
               (:datagram sock-dgram)))
         (sp (cond
               ((integerp protocol) protocol)
-              ((eq :default protocol) 0)
+              ((eql :default protocol) 0)
               (t (lookup-protocol protocol)))))
     (values sf st sp)))
 
@@ -31,24 +31,13 @@
                                        (protocol :default))
   (with-accessors ((fd fd-of) (fam socket-address-family) (proto socket-protocol))
       socket
-    (setf fd (or file-descriptor
+    (setf fd (or (and file-descriptor (isys:dup file-descriptor))
                  (multiple-value-call #'%socket
                    (translate-make-socket-keywords-to-constants
-                    address-family type protocol))))
+                    address-family type protocol)))
+          (isys:fd-nonblock fd) t)
     (setf fam address-family
           proto protocol)))
-
-(defun socket-read-fn (fd buffer nbytes)
-  (debug-only
-    (assert buffer)
-    (assert fd))
-  (%recvfrom fd buffer nbytes 0 (null-pointer) (null-pointer)))
-
-(defun socket-write-fn (fd buffer nbytes)
-  (debug-only
-    (assert buffer)
-    (assert fd))
-  (%sendto fd buffer nbytes 0 (null-pointer) 0))
 
 (defmethod (setf external-format-of) (external-format (socket passive-socket))
   (setf (slot-value socket 'external-format)
@@ -383,7 +372,7 @@
 
 (defmethod disconnect ((socket datagram-socket))
   (with-foreign-object (sin 'sockaddr-in)
-    (isys:%sys-bzero sin size-of-sockaddr-in)
+    (isys:bzero sin size-of-sockaddr-in)
     (setf (foreign-slot-value sin 'sockaddr-in 'addr) af-unspec)
     (%connect (fd-of socket) sin size-of-sockaddr-in)
     (values socket)))
@@ -481,10 +470,10 @@
     (%send-to (fd-of socket) ss (if remote-filename t) buffer start end
               (or flags (compute-flags *sendto-flags* args)))))
 
-(define-compiler-macro send-to (&whole form socket buffer &rest args
+(define-compiler-macro send-to (&whole form &environment env socket buffer &rest args
                                 &key (start 0) end (remote-host nil host-p) (remote-port 0 port-p)
                                 (remote-filename nil file-p) flags (ipv6 '*ipv6* ipv6-p) &allow-other-keys)
-  (let ((flags-val (compute-flags *sendto-flags* args)))
+  (let ((flags-val (compute-flags *sendto-flags* args env)))
     (cond
       ((and (not flags) flags-val)
        (append
@@ -561,9 +550,9 @@
       (multiple-value-call #'values buffer nbytes
                            (sockaddr-storage->sockaddr ss)))))
 
-(define-compiler-macro receive-from (&whole form socket &rest args
+(define-compiler-macro receive-from (&whole form &environment env socket &rest args
                                      &key buffer size (start 0) end flags &allow-other-keys)
-  (let ((flags-val (compute-flags *recvfrom-flags* args)))
+  (let ((flags-val (compute-flags *recvfrom-flags* args env)))
     (cond
       ((and (not flags) flags-val)
        `(receive-from ,socket :buffer ,buffer :start ,start :end ,end

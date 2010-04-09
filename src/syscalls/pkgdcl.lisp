@@ -8,232 +8,12 @@
 (defpackage :iolib.syscalls
   (:nicknames #:isys)
   (:use :iolib.base :cffi)
+  (:shadow #:open #:close #:read #:write #:listen #:truncate #:ftruncate #:time)
   (:export
-   ;; Conditions
-   #:iolib-condition
-   #:iolib-error
-   #:syscall-error
-   #:make-syscall-error
-   #:poll-error
-   #:poll-timeout
 
-   ;; Condition accessors
-   #:code-of
-   #:identifier-of
-   #:message-of
-   #:handle-of
-   #:handle2-of
-   #:event-type-of
-   #:get-syscall-error-condition
-
-   ;; Pathname Functions
-   #:native-namestring
-
-   ;; Type Designators
-   #:pointer-or-nil
-   #:pointer-or-nil-designator
-   #:bool
-   #:bool-designator
-
-   ;; Misc
-   #:repeat-upon-condition
-   #:repeat-upon-eintr
-   #:repeat-decreasing-timeout
-   #:repeat-upon-condition-decreasing-timeout
-
-   ;; Syscall return wrapper
-   #:syscall-wrapper
-   #:error-predicate-of
-   #:error-location-of
-   #:return-filter-of
-   #:error-generator-of
-   #:syscall-restart-p
-   #:base-type-of
-   #:never-fails
-   #:signal-syscall-error
-   #:signal-syscall-error-kw
-   #:signal-syscall-error/restart
-
-   ;; Syscall definition
-   #:defentrypoint
-   #:defcfun*
-   #:defsyscall
-
-   ;; SSTRING <-> CSTRING
-   #:+cstring-path-max+
-   #:cstring-to-sstring
-   #:sstring-to-cstring
-   #:with-cstring-to-sstring
-   #:with-sstring-to-cstring
-
-;;;--------------------------------------------------------------------------
-;;; Syscalls
-;;;--------------------------------------------------------------------------
-
-   ;; Specials
-   #:*default-open-mode*
-   #:*environ*
-
-   ;; Errno-related functions
-   #:%sys-strerror
-   #:%sys-errno
-
-   ;; Memory manipulation functions
-   #:%sys-memset
-   #:%sys-bzero
-   #:%sys-memcpy
-   #:%sys-memmove
-
-   ;; Files
-   #:%sys-read
-   #:%sys-write
-   #:%sys-pread
-   #:%sys-pwrite
-   #:%sys-open
-   #:%sys-creat
-   #:%sys-pipe
-   #:%sys-mkfifo
-   #:%sys-umask
-   #:%sys-lseek
-   #:%sys-access
-   #:%sys-truncate
-   #:%sys-ftruncate
-   #:%sys-rename
-   #:%sys-link
-   #:%sys-symlink
-   #:%sys-readlink
-   #:%sys-realpath
-   #:%sys-unlink
-   #:%sys-chown
-   #:%sys-fchown
-   #:%sys-lchown
-   #:%sys-chmod
-   #:%sys-fchmod
-   #:%sys-stat
-   #:%sys-fstat
-   #:%sys-lstat
-   #:%sys-sync
-   #:%sys-fsync
-   #:%sys-mkstemp
-
-   ;; Directories
-   #:%sys-mkdir
-   #:%sys-rmdir
-   #:%sys-chdir
-   #:%sys-fchdir
-   #:%sys-getcwd
-   #:%sys-mkdtemp
-
-   ;; File descriptors
-   #:%sys-close
-   #:%sys-dup
-   #:%sys-dup2
-   #:%sys-fcntl
-   #:%sys-ioctl
-   #:%sys-fd-open-p
-
-   ;; TTYs
-   #:%sys-posix-openpt
-   #:%sys-grantpt
-   #:%sys-unlockpt
-   #:%sys-ptsname
-
-   ;; I/O Polling
-   #:%sys-select
-   #:%sys-fd-zero
-   #:%sys-copy-fd-set
-   #:%sys-fd-isset
-   #:%sys-fd-clr
-   #:%sys-fd-set
-   #:%sys-poll
-   #+linux #:%sys-epoll-create
-   #+linux #:%sys-epoll-ctl
-   #+linux #:%sys-epoll-wait
-   #+bsd #:%sys-kqueue
-   #+bsd #:%sys-kevent
-   #+bsd #:%sys-ev-set
-
-   ;; Directory walking
-   #:%sys-opendir
-   #:%sys-fdopendir
-   #:%sys-dirfd
-   #:%sys-closedir
-   #:%sys-readdir
-   #:%sys-rewinddir
-   #:%sys-seekdir
-   #:%sys-telldir
-
-   ;; Memory mapping
-   #:%sys-mmap
-   #:%sys-munmap
-
-   ;; Process creation and info
-   #:%sys-fork
-   #:%sys-execv
-   #:%sys-execvp
-   #:%sys-waitpid
-   #:%sys-getpid
-   #:%sys-getppid
-   #:%sys-gettid
-   #:%sys-getuid
-   #:%sys-setuid
-   #:%sys-geteuid
-   #:%sys-seteuid
-   #:%sys-getgid
-   #:%sys-setgid
-   #:%sys-getegid
-   #:%sys-setegid
-   #:%sys-setreuid
-   #:%sys-setregid
-   #:%sys-getpgid
-   #:%sys-setpgid
-   #:%sys-getpgrp
-   #:%sys-setpgrp
-   #:%sys-setsid
-   #:%sys-getrlimit
-   #:%sys-setrlimit
-   #:%sys-getrusage
-   #:%sys-getpriority
-   #:%sys-setpriority
-   #:%sys-nice
-
-   ;; Signals
-   #:%sys-kill
-   #:%sys-sigaction
-
-   ;; Time
-   #:%sys-usleep
-   #:%sys-time
-   #:%sys-gettimeofday
-   #:%sys-get-monotonic-time
-
-   ;; Environment
-   #:%sys-getenv
-   #:%sys-setenv
-   #:%sys-unsetenv
-
-   ;; Local info
-   #:%sys-gethostname
-   #:%sys-getdomainname
-   #:%sys-uname
-
-   ;; User info
-   #:%sys-getpwnam
-   #:%sys-getpwuid
-
-   ;; Group info
-   #:%sys-getgrnam
-   #:%sys-getgrgid
-
-   ;; CMSG readers
-   #:%sys-cmsg-space
-   #:%sys-cmsg-len
-   #:%sys-cmsg-firsthdr
-   #:%sys-cmsg-data
-
-;;;--------------------------------------------------------------------------
-;;; Foreign types and constants
-;;;--------------------------------------------------------------------------
+   ;;;--------------------------------------------------------------------------
+   ;;; C Types
+   ;;;--------------------------------------------------------------------------
 
    ;; Primitive type sizes
    #:size-of-char
@@ -243,7 +23,7 @@
    #:size-of-long-long
    #:size-of-pointer
 
-   ;; Types
+   ;; POSIX Types
    #:size-t #:size-of-size-t
    #:ssize-t #:size-of-ssize-t
    #:pid-t #:size-of-pid-t
@@ -260,8 +40,13 @@
    #:blksize-t #:size-of-blksize-t
    #:blkcnt-t #:size-of-blkcnt-t
    #:nfds-t #:size-of-nfds-t
+
 
-   ;; OPEN()
+   ;;;--------------------------------------------------------------------------
+   ;;; C Constants
+   ;;;--------------------------------------------------------------------------
+
+   ;; Open()
    #:o-rdonly
    #:o-wronly
    #:o-rdwr
@@ -276,18 +61,18 @@
    #:o-nofollow
    #:o-async
 
-   ;; LSEEK()
+   ;; Lseek()
    #:seek-set
    #:seek-cur
    #:seek-end
 
-   ;; ACCESS()
+   ;; Access()
    #:r-ok
    #:w-ok
    #:x-ok
    #:f-ok
 
-   ;; STAT()
+   ;; Stat()
    #:s-irwxu
    #:s-irusr
    #:s-iwusr
@@ -317,7 +102,7 @@
    #:s-ifsock
    #:path-max
 
-   ;; READDIR()
+   ;; Readdir()
    #:dt-unknown
    #:dt-fifo
    #:dt-chr
@@ -328,7 +113,7 @@
    #:dt-sock
    #:dt-wht
 
-   ;; KILL()
+   ;; Kill()
    #:sighup
    #:sigquit
    #:sigtrap
@@ -357,11 +142,11 @@
    #+linux #:sigrtmin
    #+linux #:sigrtmax
 
-   ;; SIGACTION()
+   ;; Sigaction()
    #:sig-ign
    #:sig-dfl
 
-   ;; FCNTL()
+   ;; Fcntl()
    #:f-dupfd
    #:f-getfd
    #:f-setfd
@@ -380,7 +165,7 @@
    #+linux #:f-setlease
    #+linux #:f-getlease
 
-   ;; MMAP()
+   ;; Mmap()
    #:prot-none
    #:prot-read
    #:prot-write
@@ -390,10 +175,10 @@
    #:map-fixed
    #:map-failed
 
-   ;; SELECT()
+   ;; Select()
    #:fd-setsize
 
-   ;; POLL()
+   ;; Poll()
    #:pollin
    #:pollrdnorm
    #:pollrdband
@@ -406,7 +191,7 @@
    #:pollhup
    #:pollnval
 
-   ;; EPOLL
+   ;; Epoll
    #+linux #:epoll-ctl-add
    #+linux #:epoll-ctl-del
    #+linux #:epoll-ctl-mod
@@ -423,7 +208,7 @@
    #+linux #:epolloneshot
    #+linux #:epollet
 
-   ;; KEVENT
+   ;; Kevent
    #+bsd #:ev-add
    #+bsd #:ev-enable
    #+bsd #:ev-disable
@@ -456,11 +241,11 @@
    #+(and bsd (not darwin)) #:note-linkdown
    #+(and bsd (not darwin)) #:note-linkinv
 
-   ;; IOCTL()
+   ;; Ioctl()
    #:fionbio
    #:fionread
 
-   ;; GETRLIMIT()
+   ;; Getrlimit()
    #:prio-process
    #:prio-pgrp
    #:prio-user
@@ -487,7 +272,251 @@
    #+linux #:rlimit-sigpending
    #+bsd #:rlimit-sbsize
 
-;;; Structs
+   ;; Syscall error codes
+   #:errno-values
+   #:eperm #:enoent #:esrch #:eintr #:eio #:enxio #:e2big #:enoexec
+   #:ebadf #:echild #:eagain #:enomem #:eacces #:efault #:ebusy #:eexist
+   #:exdev #:enodev #:enotdir #:eisdir #:einval #:enfile #:emfile
+   #:enotty #:efbig #:enospc #:espipe #:erofs #:emlink #:epipe #:edom
+   #:erange #:edeadlk #:enametoolong #:enolck #:enosys #:enotempty
+   #:echrng #:el2nsync #:el3hlt #:el3rst #:elnrng #:eunatch #:enocsi
+   #:el2hlt #:ebade #:ebadr #:exfull #:enoano #:ebadrqc #:ebadslt
+   #:edeadlock #:ebfont #:enostr #:enodata #:etime #:enosr #:enopkg
+   #:eadv #:esrmnt #:ecomm #:edotdot #:enotuniq #:ebadfd #:elibscn
+   #:elibmax #:elibexec #:eilseq #:erestart #:estrpipe #:euclean
+   #:enotnam #:enavail #:eremoteio #:enomedium #:emediumtype #:estale
+   #:enotblk #:etxtbsy #:eusers #:eloop #:ewouldblock #:enomsg #:eidrm
+   #:eproto #:emultihop #:ebadmsg #:eoverflow #:edquot #:einprogress
+   #:ealready #:eprotonosupport #:esocktnosupport #:enotsock
+   #:edestaddrreq #:emsgsize #:eprototype #:enoprotoopt #:eremote
+   #:enolink #:epfnosupport #:eafnosupport #:eaddrinuse #:eaddrnotavail
+   #:enetdown #:enetunreach #:enetreset #:econnaborted #:econnreset
+   #:eisconn #:enotconn #:eshutdown #:etoomanyrefs #:etimedout
+   #:econnrefused #:ehostdown #:ehostunreach #:enonet #:enobufs
+   #:eopnotsupp
+
+
+   ;;;--------------------------------------------------------------------------
+   ;;; Syscalls
+   ;;;--------------------------------------------------------------------------
+
+   ;; Specials
+   #:*default-open-mode*
+   #:*environ*
+
+   ;; Errno-related functions
+   #:strerror
+   #:errno
+
+   ;; Memory manipulation functions
+   #:memset
+   #:bzero
+   #:memcpy
+   #:memmove
+
+   ;; Files
+   #:read
+   #:write
+   #:readv
+   #:writev
+   #:pread
+   #:pwrite
+   #:open
+   #:creat
+   #:pipe
+   #:mkfifo
+   #:umask
+   #:lseek
+   #:access
+   #:truncate
+   #:ftruncate
+   #:rename
+   #:link
+   #:symlink
+   #:readlink
+   #:realpath
+   #:unlink
+   #:chown
+   #:fchown
+   #:lchown
+   #:chmod
+   #:fchmod
+   #:stat
+   #:fstat
+   #:lstat
+   #:sync
+   #:fsync
+   #:mkstemp
+
+   ;; Directories
+   #:mkdir
+   #:rmdir
+   #:chdir
+   #:fchdir
+   #:getcwd
+   #:mkdtemp
+
+   ;; File descriptors
+   #:close
+   #:dup
+   #:dup2
+   #:fcntl
+   #:fd-nonblock
+   #:ioctl
+   #:fd-open-p
+
+   ;; TTYs
+   #:posix-openpt
+   #:grantpt
+   #:unlockpt
+   #:ptsname
+
+   ;; I/O Polling
+   #:select
+   #:fd-zero
+   #:copy-fd-set
+   #:fd-isset
+   #:fd-clr
+   #:fd-set
+   #:poll
+   #+linux #:epoll-create
+   #+linux #:epoll-ctl
+   #+linux #:epoll-wait
+   #+bsd #:kqueue
+   #+bsd #:kevent
+   #+bsd #:ev-set
+
+   ;; Directory walking
+   #:opendir
+   #-bsd #:fdopendir
+   #:dirfd
+   #:closedir
+   #:readdir
+   #:rewinddir
+   #:seekdir
+   #:telldir
+
+   ;; Memory mapping
+   #:mmap
+   #:munmap
+
+   ;; Process creation and info
+   #:fork
+   #:execv
+   #:execvp
+   #:waitpid
+   #:getpid
+   #:getppid
+   #:gettid
+   #:getuid
+   #:setuid
+   #:geteuid
+   #:seteuid
+   #:getgid
+   #:setgid
+   #:getegid
+   #:setegid
+   #:setreuid
+   #:setregid
+   #:getpgid
+   #:setpgid
+   #:getpgrp
+   #:setpgrp
+   #:setsid
+   #:getrlimit
+   #:setrlimit
+   #:getrusage
+   #:getpriority
+   #:setpriority
+   #:nice
+
+   ;; Signals
+   #:kill
+   #:sigaction
+
+   ;; Time
+   #:usleep
+   #:time
+   #:gettimeofday
+   #:get-monotonic-time
+
+   ;; Environment
+   #:getenv
+   #:setenv
+   #:unsetenv
+   #:clearenv
+
+   ;; Local info
+   #:gethostname
+   #:getdomainname
+   #:uname
+
+   ;; User info
+   #:getpwnam
+   #:getpwuid
+
+   ;; Group info
+   #:getgrnam
+   #:getgrgid
+
+   ;; CMSG readers
+   #:cmsg.space
+   #:cmsg.len
+   #:cmsg.firsthdr
+   #:cmsg.data
+
+
+   ;;;--------------------------------------------------------------------------
+   ;;; Error conditions, wrappers and definers
+   ;;;--------------------------------------------------------------------------
+
+   #:iolib-condition #:iolib-error
+   #:syscall-error #:code-of #:identifier-of #:message-of #:handle-of #:handle2-of
+   #:make-syscall-error #:get-syscall-error-condition
+   #:signal-syscall-error #:signal-syscall-error/restart
+   #:poll-error #:event-type-of #:poll-timeout
+
+   ;; Syscall return wrapper
+   #:syscall-wrapper
+   #:error-predicate-of
+   #:error-location-of
+   #:return-filter-of
+   #:error-generator-of
+   #:syscall-restart-p
+   #:base-type-of
+   #:never-fails
+   #:signal-syscall-error
+   #:signal-syscall-error-kw
+   #:signal-syscall-error/restart
+
+   ;; Syscall definers
+   #:defentrypoint
+   #:defcfun*
+   #:defsyscall
+
+   ;; CFFI Type Designators
+   #:pointer-or-nil
+   #:pointer-or-nil-designator
+   #:bool
+   #:bool-designator
+
+   ;; SSTRING <-> CSTRING
+   #:+cstring-path-max+
+   #:cstring-to-sstring
+   #:sstring-to-cstring
+   #:with-cstring-to-sstring
+   #:with-sstring-to-cstring
+
+   ;; Misc
+   #:repeat-upon-condition
+   #:repeat-upon-eintr
+   #:repeat-decreasing-timeout
+   #:repeat-upon-condition-decreasing-timeout
+
+
+   ;;;--------------------------------------------------------------------------
+   ;;; Struct definitions, slots and accessors
+   ;;;--------------------------------------------------------------------------
 
    ;; timespec
    #:timespec #:size-of-timespec
@@ -548,27 +577,4 @@
    #+bsd #:fflags
    #+bsd #:data
    #+bsd #:udata
-
-   ;; Syscall error codes
-   #:errno-values
-   #:eperm #:enoent #:esrch #:eintr #:eio #:enxio #:e2big #:enoexec
-   #:ebadf #:echild #:eagain #:enomem #:eacces #:efault #:ebusy #:eexist
-   #:exdev #:enodev #:enotdir #:eisdir #:einval #:enfile #:emfile
-   #:enotty #:efbig #:enospc #:espipe #:erofs #:emlink #:epipe #:edom
-   #:erange #:edeadlk #:enametoolong #:enolck #:enosys #:enotempty
-   #:echrng #:el2nsync #:el3hlt #:el3rst #:elnrng #:eunatch #:enocsi
-   #:el2hlt #:ebade #:ebadr #:exfull #:enoano #:ebadrqc #:ebadslt
-   #:edeadlock #:ebfont #:enostr #:enodata #:etime #:enosr #:enopkg
-   #:eadv #:esrmnt #:ecomm #:edotdot #:enotuniq #:ebadfd #:elibscn
-   #:elibmax #:elibexec #:eilseq #:erestart #:estrpipe #:euclean
-   #:enotnam #:enavail #:eremoteio #:enomedium #:emediumtype #:estale
-   #:enotblk #:etxtbsy #:eusers #:eloop #:ewouldblock #:enomsg #:eidrm
-   #:eproto #:emultihop #:ebadmsg #:eoverflow #:edquot #:einprogress
-   #:ealready #:eprotonosupport #:esocktnosupport #:enotsock
-   #:edestaddrreq #:emsgsize #:eprototype #:enoprotoopt #:eremote
-   #:enolink #:epfnosupport #:eafnosupport #:eaddrinuse #:eaddrnotavail
-   #:enetdown #:enetunreach #:enetreset #:econnaborted #:econnreset
-   #:eisconn #:enotconn #:eshutdown #:etoomanyrefs #:etimedout
-   #:econnrefused #:ehostdown #:ehostunreach #:enonet #:enobufs
-   #:eopnotsupp
    ))

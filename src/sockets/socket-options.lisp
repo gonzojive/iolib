@@ -43,14 +43,14 @@
 (defmacro define-get-sockopt (os name type level optname)
   `(defmethod socket-option ((socket socket) (option-name (eql ,name)))
      (declare (ignorable socket option-name))
-     ,(if (or (eq :any os) (featurep os))
+     ,(if (or (eql :any os) (featurep os))
           (let ((getter (socktype-getter type)))
             `(,getter (fd-of socket) ,level ,optname))
           `(error 'socket-option-not-supported-error
                   :message ,(format nil "Unsupported socket option: ~S" name)))))
 
 (defmacro define-set-sockopt (os name type level optname)
-  (when (or (eq :any os) (featurep os))
+  (when (or (eql :any os) (featurep os))
     `(setf (gethash ,name *set-socket-options*)
            (list ,type ,level ,optname))))
 
@@ -169,10 +169,10 @@
 #+linux
 (define-socket-option-helper (:set :ifreq-name) (fd level option interface)
   (with-foreign-object (optval 'ifreq)
-    (isys:%sys-bzero optval size-of-ifreq)
+    (isys:bzero optval size-of-ifreq)
     (with-foreign-slots ((name) optval ifreq)
       (with-foreign-string (ifname interface)
-        (isys:%sys-memcpy name ifname (min (length interface) (1- ifnamsiz)))))
+        (isys:memcpy name ifname (min (length interface) (1- ifnamsiz)))))
     (%setsockopt fd level option optval size-of-ifreq)
     (values interface)))
 

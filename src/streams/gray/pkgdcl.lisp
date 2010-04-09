@@ -16,17 +16,7 @@
 
    ;; Conditions
    #:hangup
-
-   ;; Types
-   #:sb16
-   #:sb32
-   #:sb8
-   #:ub16
-   #:ub16-sarray
-   #:ub32
-   #:ub8
-   #:ub8-sarray
-   #:ub8-vector
+   #:no-characters-to-unread
 
    ;; Accessors
    #:external-format-of

@@ -1,15 +1,13 @@
 ;;;; -*- Mode: Lisp; Syntax: ANSI-Common-Lisp; indent-tabs-mode: nil -*-
 
-(in-package :common-lisp-user)
-
-(asdf:defsystem :iolib.os
+(defsystem :iolib.os
   :description "OS interface."
-  :maintainer "Stelian Ionescu <sionescu@common-lisp.net>"
+  :maintainer "Stelian Ionescu <sionescu@cddr.org>"
   :licence "MIT"
   :depends-on (:iolib.base :iolib.syscalls :iolib.pathnames)
   :pathname (merge-pathnames "os/" *load-truename*)
   :serial t
   :components
   ((:file "pkgdcl")
-   (:file "os" :depends-on ("pkgdcl")
-     :pathname #+unix "os-unix")))
+   (:file "os" :pathname #+unix "os-unix"
+     :depends-on ("pkgdcl"))))

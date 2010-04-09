@@ -265,8 +265,8 @@ within the extent of BODY.  Closes VAR."
 ;;; EVENT-DISPATCH
 ;;;-------------------------------------------------------------------------
 
-(defvar *minimum-event-loop-step* 0.5d0)
-(defvar *maximum-event-loop-step* 1.0d0)
+(defvar *minimum-event-loop-step* 0.0d0)
+(defvar *maximum-event-loop-step* nil)
 
 (defmethod event-dispatch :before
     ((event-base event-base) &key timeout one-shot min-step max-step)
@@ -280,30 +280,34 @@ within the extent of BODY.  Closes VAR."
                            (max-step *maximum-event-loop-step*))
   (declare (ignore timeout))
   (coercef min-step 'double-float)
-  (coercef max-step 'double-float)
+  (when max-step (coercef max-step 'double-float))
   (with-accessors ((mux mux-of) (fds fds-of) (exit-p exit-p)
                    (exit-when-empty exit-when-empty-p)
                    (timers timers-of) (fd-timers fd-timers-of)
                    (expired-events expired-events-of))
       event-base
     (labels ((poll-timeout (now)
-               (clamp-timeout (- (min (time-to-next-timer timers)
-                                      (time-to-next-timer fd-timers))
-                                 now)
-                              min-step max-step))
+               (let* ((deadline1 (time-to-next-timer timers))
+                      (deadline2 (time-to-next-timer fd-timers))
+                      (deadline (if (and deadline1 deadline2)
+                                    (min deadline1 deadline2)
+                                    (or deadline1 deadline2))))
+                 (if deadline
+                     (clamp-timeout (- deadline now) min-step max-step)
+                     max-step)))
              (must-exit-loop-p ()
                (or exit-p
                    (and exit-when-empty
                         (event-base-empty-p event-base)))))
       (loop :with deletion-list := ()
             :with eventsp := nil
-            :for now := (isys:%sys-get-monotonic-time)
+            :for now := (isys:get-monotonic-time)
             :for poll-timeout := (poll-timeout now)
             :until (must-exit-loop-p) :do
         (setf expired-events nil)
         (setf (values eventsp deletion-list)
               (dispatch-fd-events-once event-base poll-timeout now))
-        (%remove-handlers event-base deletion-list)
+        (%remove-handlers event-base (delete nil deletion-list))
         (when (expire-pending-timers fd-timers now) (setf eventsp t))
         (dispatch-fd-timeouts expired-events)
         (when (expire-pending-timers timers now) (setf eventsp t))
@@ -340,9 +344,8 @@ within the extent of BODY.  Closes VAR."
           (setf writep (%dispatch-event fd-entry :write
                                         (if errorp :error nil) now)))
         (when errorp
-          (funcall (fd-entry-error-callback fd-entry)
-                   (fd-entry-fd fd-entry)
-                   :error)
+          (when-let ((callback (fd-entry-error-callback fd-entry)))
+            (funcall callback (fd-entry-fd fd-entry) :error))
           (setf readp t writep t))
         (when readp (push (fd-entry-read-handler fd-entry) deletion-list))
         (when writep (push (fd-entry-write-handler fd-entry) deletion-list)))
@@ -350,13 +353,14 @@ within the extent of BODY.  Closes VAR."
 
 (defun %dispatch-event (fd-entry event-type errorp now)
   (let ((ev (fd-entry-handler fd-entry event-type)))
-    (funcall (fd-handler-callback ev)
-             (fd-entry-fd fd-entry)
-             event-type
-             (if errorp :error nil))
-    (when-let (timer (fd-handler-timer ev))
-      (reschedule-timer-relative-to-now timer now))
-    (fd-handler-one-shot-p ev)))
+    (when ev
+      (funcall (fd-handler-callback ev)
+               (fd-entry-fd fd-entry)
+               event-type
+               (if errorp :error nil))
+      (when-let (timer (fd-handler-timer ev))
+        (reschedule-timer-relative-to-now timer now))
+      (fd-handler-one-shot-p ev))))
 
 (defun dispatch-fd-timeouts (events)
   (dolist (ev events)

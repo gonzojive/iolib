@@ -3,7 +3,7 @@
 ;;; --- Zeta Streams.
 ;;;
 
-(in-package :iolib.zeta-streams)
+(in-package :iolib.zstreams)
 
 ;;;-------------------------------------------------------------------------
 ;;; Classes and Types
@@ -230,7 +230,7 @@
           :finally (when unused
                      (warn "Invalid stream instance flag~P: ~{~S~^, ~}"
                            (length unused) unused))
-	      (return bits))))
+                   (return bits))))
 
 (defmacro with-zstream-class ((class-name &optional stream) &body body)
   (if stream
@@ -329,9 +329,11 @@
     (cond
       (data
        (check-bounds data start end)
-       (when element-type
-         ;; FIXME: signal proper condition
-         (assert (subtypep element-type (array-element-type data))))
+       (when (and element-type
+                  (not (subtypep element-type (array-element-type data))))
+         (error 'subtype-error
+                :datum element-type
+                :expected-supertype (array-element-type data)))
        (setf data-vector
              (make-array (truncate (* adjust-size (length data)))
                          :element-type (or element-type
@@ -699,7 +701,7 @@
 
 
 ;;;-------------------------------------------------------------------------
-;;; MEMORY-ZSTREAM GROW
+;;; MEMORY-ZSTREAM GROWTH
 ;;;-------------------------------------------------------------------------
 
 (defmethod %ensure-buffer-capacity
