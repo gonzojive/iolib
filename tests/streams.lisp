@@ -189,3 +189,32 @@
      (loop :for args :in args-list
            :unless (apply #'compare-files args)
            :collect args))))
+
+(defun async-client-server-streams (string-to-pass)
+  (let* ((client (iolib:make-socket
+                         :connect :active
+                         :address-family :internet
+                         :type :stream
+                         :external-format '(:utf-8 :eol-style :crlf)
+                         :ipv6 nil))
+                (server (iolib:make-socket
+                         :connect :passive
+                         :address-family :internet
+                         :type :stream
+                         :external-format '(:utf-8 :eol-style :crlf)
+                         :ipv6 nil)))
+           (iolib:bind-address server
+                               iolib:+ipv4-unspecified+
+                               :port 9001)
+           (unwind-protect
+                (progn
+                  (iolib:listen-on server :backlog 5)
+                  (iolib:connect client (iolib:lookup-hostname "localhost" :ipv6 nil) :port 9001)
+                  (loop :for it = (iolib:accept-connection server :wait nil)
+                        :until it :do (sleep 1)
+                        :finally
+                        (let ((seq (make-string 5)))
+                          (write-string (make-string 5000) client)
+                          (format t "Read something from server: ~A~%" seq) (read-sequence seq it)
+                          seq)))
+             (close server) (close client))))
