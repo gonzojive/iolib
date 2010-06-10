@@ -1,3 +1,9 @@
 misc
 *~
 .fasls
+*.so
+\#*
+src/sockets/grovel
+src/sockets/grovel.c
+src/sockets/grovel.grovel-tmp.lisp
+tests/test-dir/
