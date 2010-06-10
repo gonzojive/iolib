@@ -1,4 +1,4 @@
-;;;; -*- Mode: Lisp; Syntax: ANSI-Common-Lisp; indent-tabs-mode: nil -*-
+;;;; -*- Mode: Lisp; indent-tabs-mode: nil -*-
 ;;;
 ;;; --- Grovelling for socket constants and types.
 ;;;
@@ -188,7 +188,7 @@
 (constant (tcp-nopush "TCP_NOPUSH") :optional t)              ; freebsd
 (constant (tcp-quickack "TCP_QUICKACK") :optional t)          ; linux
 (constant (tcp-syncnt "TCP_SYNCNT") :optional t)              ; linux
-(constant (tcp-window "TCP_WINDOW") :optional t)              ; linux
+(constant (tcp-window "TCP_WINDOW_CLAMP") :optional t)        ; linux
 
 ;;; shutdown()
 (constant (shut-rd "SHUT_RD" "SD_RECEIVE"))

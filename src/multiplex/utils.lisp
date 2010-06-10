@@ -1,4 +1,4 @@
-;;;; -*- Mode: Lisp; Syntax: ANSI-Common-Lisp; indent-tabs-mode: nil -*-
+;;;; -*- Mode: Lisp; indent-tabs-mode: nil -*-
 ;;;
 ;;; --- Miscellaneous utilities.
 ;;;
@@ -19,7 +19,7 @@
       (setf isys:sec  %sec
             isys:nsec (* 1000 %usec)))))
 
-(defun timeout->milisec (timeout)
+(defun timeout->milliseconds (timeout)
   (if timeout
       (multiple-value-bind (sec usec)
           (decode-timeout timeout)

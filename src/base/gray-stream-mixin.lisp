@@ -1,4 +1,4 @@
-;;;; -*- Mode: Lisp; Syntax: ANSI-Common-Lisp; indent-tabs-mode: nil -*-
+;;;; -*- Mode: Lisp; indent-tabs-mode: nil -*-
 ;;;
 ;;; --- GRAY stream mixin.
 ;;;
@@ -106,7 +106,7 @@
 
   (defmethod gray:stream-position ((stream trivial-gray-stream-mixin) position)
     (if position
-	(setf (stream-file-position stream) position)
+        (setf (stream-file-position stream) position)
         (stream-file-position stream))))
 
 #+sbcl
@@ -123,6 +123,8 @@
 
 #+ecl
 (progn
+  (when (fboundp 'gray::redefine-cl-functions)
+    (gray::redefine-cl-functions))
   (defmethod gray:stream-read-sequence
       ((s trivial-gray-stream-mixin) seq &optional start end)
     (stream-read-sequence s seq (or start 0) (or end (length seq))))

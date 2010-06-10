@@ -1,4 +1,4 @@
-;;;; -*- Mode: Lisp; Syntax: ANSI-Common-Lisp; indent-tabs-mode: nil -*-
+;;;; -*- Mode: Lisp; indent-tabs-mode: nil -*-
 ;;;
 ;;; --- Syscall error conditions.
 ;;;
@@ -16,7 +16,9 @@
   ())
 
 (define-condition syscall-error (iolib-error)
-  ((code :initarg :code :reader code-of
+  ((syscall :initarg :syscall :reader syscall-of
+            :documentation "The name of the C syscall.")
+   (code :initarg :code :reader code-of
          :documentation "Numeric error code, or NIL.")
    (identifier :initarg :identifier :reader identifier-of
                :documentation "Keyword identifier, or NIL.")
@@ -28,6 +30,9 @@
             :documentation "An optional second OS handler."))
   (:default-initargs :code nil :identifier :unknown :message nil)
   (:documentation "Base class for syscall errors."))
+
+(defun syscall-error-p (thing)
+  (typep thing 'syscall-error))
 
 (defun syscall-error (control-string &rest args)
   (error 'syscall-error :message (format nil "~?" control-string args)))

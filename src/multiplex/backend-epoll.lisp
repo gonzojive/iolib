@@ -1,4 +1,4 @@
-;;;; -*- Mode: Lisp; Syntax: ANSI-Common-Lisp; indent-tabs-mode: nil -*-
+;;;; -*- Mode: Lisp; indent-tabs-mode: nil -*-
 ;;;
 ;;; --- epoll(2) multiplexer implementation.
 ;;;
@@ -87,7 +87,7 @@
       (isys:repeat-upon-condition-decreasing-timeout
           ((isys:eintr) tmp-timeout timeout)
         (setf ready-fds (isys:epoll-wait (fd-of mux) events +epoll-max-events+
-                                              (timeout->milisec tmp-timeout))))
+                                         (timeout->milliseconds tmp-timeout))))
       (macrolet ((epoll-slot (slot-name)
                    `(foreign-slot-value (mem-aref events 'isys:epoll-event i)
                                         'isys:epoll-event ',slot-name)))

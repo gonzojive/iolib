@@ -1,4 +1,4 @@
-;;;; -*- Mode: Lisp; Syntax: ANSI-Common-Lisp; indent-tabs-mode: nil -*-
+;;;; -*- Mode: Lisp; indent-tabs-mode: nil -*-
 ;;;
 ;;; --- Package definition.
 ;;;
@@ -7,6 +7,8 @@
 
 (defpackage :iolib.os
   (:use :iolib.base :iolib.pathnames :cffi)
+  (:import-from :iolib.syscalls #:defsyscall
+                #:mode-t #:size-of-mode-t #:pid-t #:size-of-pid-t)
   (:import-from :iolib.pathnames #:split-root/nodes)
   (:export
 
@@ -15,6 +17,17 @@
    #:environment-variable
    #:makunbound-environment-variable
    #:clear-environment
+
+   ;; Processes
+   #:process
+   #:process-pid
+   #:process-stdin
+   #:process-stdout
+   #:process-stderr
+   #:create-process
+   #:run-program
+   #:process-wait
+   #:process-kill
 
    ;; Directories
    #:current-directory

@@ -1,4 +1,4 @@
-;;;; -*- Mode: Lisp; Syntax: ANSI-Common-Lisp; indent-tabs-mode: nil -*-
+;;;; -*- Mode: Lisp; indent-tabs-mode: nil -*-
 ;;;
 ;;; --- Match utils
 ;;;
@@ -48,5 +48,5 @@
                                            `(logior ,@flags)
                                            flags))
                                     ,mask)
-                           ,(second clause)))
+                           ,@(rest clause)))
                       clauses))))

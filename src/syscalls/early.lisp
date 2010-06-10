@@ -1,4 +1,4 @@
-;;;; -*- Mode: Lisp; Syntax: ANSI-Common-Lisp; indent-tabs-mode: nil -*-
+;;;; -*- Mode: Lisp; indent-tabs-mode: nil -*-
 ;;;
 ;;; --- Early FFI definitions.
 ;;;
@@ -23,8 +23,8 @@
 
 ;;; Error predicate that always returns NIL.  Not actually used
 ;;; because the RETURN-WRAPPER optimizes this call away.
-(defun never-fails (errcode)
-  (declare (ignore errcode))
+(defun never-fails (errcode syscall)
+  (declare (ignore errcode syscall))
   nil)
 
 ;;; NOTE: This is a pretty neat type that probably deserves to be
@@ -36,7 +36,8 @@
 ;;; ERROR-PREDICATE returns true, ERROR-GENERATOR is invoked.  See the
 ;;; RETURN-WRAPPER parse method and type translation.
 (define-foreign-type syscall-wrapper ()
-  ((error-predicate :initarg :error-predicate :reader error-predicate-of)
+  ((syscall :initarg :syscall :reader syscall-of)
+   (error-predicate :initarg :error-predicate :reader error-predicate-of)
    (error-location :initarg :error-location :reader error-location-of)
    (return-filter :initarg :return-filter :reader return-filter-of)
    (error-generator :initarg :error-generator :reader error-generator-of)
@@ -65,7 +66,7 @@
         (error "Could not choose an error-predicate function."))))))
 
 (define-parse-method syscall-wrapper
-    (base-type &key handle handle2 restart
+    (base-type &key syscall handle handle2 restart
      (error-predicate 'never-fails error-predicate-p)
      (error-location :errno)
      (return-filter 'identity)
@@ -78,6 +79,7 @@
   (unless (or (eql 'never-fails error-predicate) error-generator)
     (error "Function can fail but no error-generator suplied."))
   (make-instance 'syscall-wrapper
+                 :syscall syscall
                  :actual-type base-type
                  :base-type base-type
                  :handle handle
@@ -110,7 +112,7 @@
                            (if (eql 'never-fails (error-predicate-of type))
                                `return-val-exp
                                `(if (,(error-predicate-of type) ,retval)
-                                    (,(error-generator-of type) ,errno
+                                    (,(error-generator-of type) ,errno ,(syscall-of type)
                                       ,(handle-of type) ,(handle2-of type))
                                     ,return-val-exp))))
                          (if (syscall-restart-p type)
@@ -122,36 +124,29 @@
                     ,foreign-call))
               foreign-call)))))
 
-(defmacro signal-syscall-error/restart (errno &optional fd fd2)
+(defmacro signal-syscall-error/restart (errno &optional syscall fd fd2)
   `(if (= eintr ,errno)
        (go :restart)
-       (signal-syscall-error ,errno ,fd ,fd2)))
+       (signal-syscall-error ,errno ,syscall ,fd ,fd2)))
 
 
 ;;;-------------------------------------------------------------------------
 ;;; Utilities
 ;;;-------------------------------------------------------------------------
 
-(defun foreign-name (spec &optional varp)
-  (declare (ignore varp))
-  (check-type spec list)
-  (destructuring-bind (first second) spec
-    (etypecase first
-      ((or string cons)
-       (foreign-name (list second (ensure-list first))))
-      (symbol
-       (setf second (ensure-list second))
-       (assert (every #'stringp second))
-       (loop :for sym :in second
-             :if (foreign-symbol-pointer sym) :do (return sym)
-             :finally
-             (error "None of these foreign symbols is defined: ~{~S~^, ~}"
-                    second))))))
-
-(defun parse-name-and-options (spec &optional varp)
-  (values (cffi::lisp-name spec varp)
-          (foreign-name spec varp)
-          (cffi::foreign-options spec varp)))
+(defun parse-name-and-options (spec)
+  (assert (or (stringp spec)
+              (and (symbolp (first spec))
+                   (every #'stringp (ensure-list (second spec))))))
+  (cond
+    ((stringp spec)
+     (values (cffi::lisp-name spec) (cffi::foreign-name spec)
+             (cffi::foreign-options spec nil)))
+    (t
+     (values (first spec)
+             (find-if #'foreign-symbol-pointer
+                      (ensure-list (second spec)))
+             (cffi::foreign-options spec nil)))))
 
 
 ;;;-------------------------------------------------------------------------
@@ -177,5 +172,6 @@
     `(progn
        (declaim (inline ,lisp-name))
        (defcfun (,c-name ,lisp-name ,@options)
-           (syscall-wrapper ,@(ensure-list return-type))
+           (syscall-wrapper ,@(append (ensure-list return-type)
+                                      (list :syscall c-name)))
          ,@args))))

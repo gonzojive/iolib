@@ -1,4 +1,4 @@
-;;;; -*- Mode: Lisp; Syntax: ANSI-Common-Lisp; indent-tabs-mode: nil -*-
+;;;; -*- Mode: Lisp; indent-tabs-mode: nil -*-
 ;;;
 ;;; --- Package definition.
 ;;;
@@ -60,6 +60,7 @@
    #:o-sync
    #:o-nofollow
    #:o-async
+   #+linux #:o-cloexec
 
    ;; Lseek()
    #:seek-set
@@ -128,6 +129,7 @@
    #:sigtstp
    #:sigcont
    #:sigchld
+   #:sigcld
    #:sigttin
    #:sigttou
    #:sigio
@@ -142,9 +144,21 @@
    #+linux #:sigrtmin
    #+linux #:sigrtmax
 
+   ;; waitpid()
+   #:wnohang
+   #:wuntraced
+   #:wcontinued
+
    ;; Sigaction()
    #:sig-ign
    #:sig-dfl
+   #:sa-nocldstop
+   #:sa-nocldwait
+   #:sa-nodefer
+   #:sa-onstack
+   #:sa-resethand
+   #:sa-restart
+   #:sa-siginfo
 
    ;; Fcntl()
    #:f-dupfd
@@ -433,6 +447,13 @@
    ;; Signals
    #:kill
    #:sigaction
+   #:wifexited
+   #:wexitstatus
+   #:wtermsig
+   #:wcoredump
+   #:wifstopped
+   #:wstopsig
+   #:wifcontinued
 
    ;; Time
    #:usleep
@@ -472,7 +493,7 @@
 
    #:iolib-condition #:iolib-error
    #:syscall-error #:code-of #:identifier-of #:message-of #:handle-of #:handle2-of
-   #:make-syscall-error #:get-syscall-error-condition
+   #:make-syscall-error #:syscall-error-p #:get-syscall-error-condition
    #:signal-syscall-error #:signal-syscall-error/restart
    #:poll-error #:event-type-of #:poll-timeout
 

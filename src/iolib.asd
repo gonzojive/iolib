@@ -1,4 +1,7 @@
-;;;; -*- Mode: Lisp; Syntax: ANSI-Common-Lisp; indent-tabs-mode: nil -*-
+;;;; -*- Mode: Lisp; indent-tabs-mode: nil -*-
+
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (oos 'load-op :iolib.base))
 
 (defsystem :iolib
   :description "I/O library."
@@ -7,7 +10,9 @@
   :version "0.6.0-dev"
   :licence "MIT"
   :depends-on (:iolib.base :iolib.multiplex :iolib.streams :iolib.sockets)
-  :pathname (merge-pathnames #p"iolib/" *load-truename*)
+  :default-component-class iolib.base:cl-source-file
+  :pathname #-asdf2 (merge-pathnames "iolib/" *load-truename*)
+            #+asdf2 "iolib/"
   :components ((:file "pkgdcl")))
 
 (defmethod perform ((o test-op) (c (eql (find-system :iolib))))

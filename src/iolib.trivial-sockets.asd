@@ -1,4 +1,7 @@
-;;;; -*- Mode: Lisp; Syntax: ANSI-Common-Lisp; indent-tabs-mode: nil -*-
+;;;; -*- Mode: Lisp; indent-tabs-mode: nil -*-
+
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (oos 'load-op :iolib.base))
 
 (defsystem :iolib.trivial-sockets
   :description "Trivial-Sockets compatibility layer."
@@ -6,6 +9,8 @@
   :maintainer "Stelian Ionescu <sionescu@cddr.org>"
   :licence "MIT"
   :depends-on (:iolib.base :iolib.sockets)
-  :pathname (merge-pathnames #p"sockets/" *load-truename*)
+  :default-component-class iolib.base:cl-source-file
+  :pathname #-asdf2 (merge-pathnames "sockets/" *load-truename*)
+            #+asdf2 "sockets/"
   :components
   ((:file "trivial-sockets")))

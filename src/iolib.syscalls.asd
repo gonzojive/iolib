@@ -1,6 +1,7 @@
-;;;; -*- Mode: Lisp; Syntax: ANSI-Common-Lisp; indent-tabs-mode: nil -*-
+;;;; -*- Mode: Lisp; indent-tabs-mode: nil -*-
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
+  (oos 'load-op :iolib.base)
   (oos 'load-op :cffi-grovel))
 
 (defsystem :iolib.syscalls
@@ -8,8 +9,9 @@
   :maintainer "Stelian Ionescu <sionescu@cddr.org>"
   :licence "MIT"
   :depends-on (:trivial-features :cffi :cffi-grovel :iolib.base)
-  :pathname (merge-pathnames "syscalls/" *load-truename*)
-  :serial t
+  :default-component-class iolib.base:cl-source-file
+  :pathname #-asdf2 (merge-pathnames "syscalls/" *load-truename*)
+            #+asdf2 "syscalls/"
   :components
   ((:file "pkgdcl")
    #+unix
@@ -22,4 +24,5 @@
    (:file "early")
    (cffi-grovel:wrapper-file "ffi-wrappers" :pathname #+unix "ffi-wrappers-unix"
      :soname "libiolib-syscalls")
-   (:file "ffi-functions" :pathname #+unix "ffi-functions-unix")))
+   (:file "ffi-functions" :pathname #+unix "ffi-functions-unix"))
+  :serial t)

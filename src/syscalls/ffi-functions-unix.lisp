@@ -1,4 +1,4 @@
-;;;; -*- Mode: Lisp; Syntax: ANSI-Common-Lisp; indent-tabs-mode: nil -*-
+;;;; -*- Mode: Lisp; indent-tabs-mode: nil -*-
 ;;;
 ;;; --- *UNIX foreign function definitions.
 ;;;
@@ -36,12 +36,12 @@
       (%strerror-r errno buf bufsiz))))
 
 (defmethod print-object ((e syscall-error) s)
-  (with-slots (code identifier message handle handle2) e
+  (with-slots (syscall code identifier message handle handle2) e
     (if message
         (format s "~A" message)
         (print-unreadable-object (e s :type nil :identity nil)
-          (format s "Syscall error ~A(~S) ~S"
-                  identifier (or code "[No code]")
+          (format s "Syscall ~S signalled error ~A(~S) ~S"
+                  syscall identifier (or code "[No code]")
                   (or (strerror code) "[Can't get error string.]"))
           (when handle (format s " FD=~A" handle))
           (when handle2 (format s " FD2=~A" handle2))))))
@@ -414,8 +414,8 @@ Return two values: the file descriptor and the path of the temporary file."
     ((not argp)     (%fcntl/noarg   fd cmd))
     ((integerp arg) (%fcntl/int     fd cmd arg))
     ((pointerp arg) (%fcntl/pointer fd cmd arg))
-    ;; FIXME: signal a type error
-    (t (error "Wrong argument to fcntl: ~S" arg))))
+    (t (error 'type-error :datum arg
+              :expected-type '(or integer foreign-pointer)))))
 
 (defentrypoint fd-nonblock (fd)
   (let ((current-flags (fcntl fd f-getfl)))
@@ -431,16 +431,16 @@ Return two values: the file descriptor and the path of the temporary file."
     newmode))
 
 (defsyscall (%ioctl/noarg "ioctl")
-    (:int :restart t :handle fd)
+    (:int :handle fd)
   "Send request REQUEST to file referenced by FD."
   (fd      :int)
-  (request :int))
+  (request :unsigned-int))
 
 (defsyscall (%ioctl/pointer "ioctl")
-    (:int :restart t :handle fd)
+    (:int :handle fd)
   "Send request REQUEST to file referenced by FD using argument ARG."
  (fd      :int)
- (request :int)
+ (request :unsigned-int)
  (arg     :pointer))
 
 (defentrypoint ioctl (fd request &optional (arg nil argp))
@@ -448,8 +448,7 @@ Return two values: the file descriptor and the path of the temporary file."
   (cond
     ((not argp)     (%ioctl/noarg   fd request))
     ((pointerp arg) (%ioctl/pointer fd request arg))
-    ;; FIXME: signal a type error
-    (t (error "Wrong argument to ioctl: ~S" arg))))
+    (t (error 'type-error :datum arg :expected-type 'foreign-pointer))))
 
 (defentrypoint fd-open-p (fd)
   (handler-case
@@ -662,10 +661,15 @@ processes mapping the same region."
   (file :string)
   (argv :pointer))
 
-(defsyscall (waitpid "waitpid") pid-t
+(defsyscall (%waitpid "waitpid") pid-t
   (pid     pid-t)
   (status  :pointer)
   (options :int))
+
+(defentrypoint waitpid (pid options)
+  (with-foreign-pointer (status size-of-int)
+    (let ((ret (%waitpid pid status options)))
+      (values ret (mem-ref status :int)))))
 
 (defsyscall (getpid "getpid") pid-t
   "Returns the process id of the current process")
@@ -803,7 +807,7 @@ as indicated by WHICH and WHO to VALUE."
   (let ((retval (foreign-funcall "nice" :int increment :int))
         (errno (errno)))
     (if (and (= retval -1) (/= errno 0))
-        (signal-syscall-error errno)
+        (signal-syscall-error errno "nice")
         retval)))
 
 (defsyscall (exit "_exit") :void
@@ -943,7 +947,7 @@ as indicated by WHICH and WHO to VALUE."
   "Returns the value of environment variable NAME."
   (when (and (pointerp name) (null-pointer-p name))
     (setf (errno) einval)
-    (signal-syscall-error))
+    (signal-syscall-error einval "getenv"))
   (foreign-funcall "getenv" :string name :string))
 
 (defsyscall (setenv "setenv") :int

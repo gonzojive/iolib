@@ -1,4 +1,4 @@
-;;;; -*- Mode: Lisp; Syntax: ANSI-Common-Lisp; indent-tabs-mode: nil -*-
+;;;; -*- Mode: Lisp; indent-tabs-mode: nil -*-
 
 (defsystem :iolib.base
   :description "Base IOlib package, used instead of CL."
@@ -6,7 +6,8 @@
   :maintainer "Stelian Ionescu <sionescu@cddr.org>"
   :licence "MIT"
   :depends-on (:alexandria)
-  :pathname (merge-pathnames #p"base/" *load-truename*)
+  :pathname #-asdf2 (merge-pathnames "base/" *load-truename*)
+            #+asdf2 "base/"
   :components
   ((:file "pkgdcl")
    (:file "return-star" :depends-on ("pkgdcl"))
@@ -22,4 +23,5 @@
    (:file "split-sequence" :depends-on ("pkgdcl" "return-star" "sequence"))
    #+scl (:file "scl-gray-streams")
    (:file "gray-stream-mixin"
-     :depends-on ("pkgdcl" "return-star" #+scl "scl-gray-streams"))))
+     :depends-on ("pkgdcl" "return-star" #+scl "scl-gray-streams"))
+   (:file "asdf" :depends-on ("pkgdcl" "return-star"))))

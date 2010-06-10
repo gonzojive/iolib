@@ -1,4 +1,4 @@
-;;;; -*- Mode: Lisp; Syntax: ANSI-Common-Lisp; indent-tabs-mode: nil -*-
+;;;; -*- Mode: Lisp; indent-tabs-mode: nil -*-
 ;;;
 ;;; --- Various socket methods.
 ;;;
@@ -27,11 +27,13 @@
   (fd-of socket))
 
 (defmethod initialize-instance :after ((socket socket) &key
-                                       file-descriptor address-family type
+                                       file-descriptor (dup t) address-family type
                                        (protocol :default))
   (with-accessors ((fd fd-of) (fam socket-address-family) (proto socket-protocol))
       socket
-    (setf fd (or (and file-descriptor (isys:dup file-descriptor))
+    (setf fd (or (and file-descriptor (if dup
+                                          (isys:dup file-descriptor)
+                                          file-descriptor))
                  (multiple-value-call #'%socket
                    (translate-make-socket-keywords-to-constants
                     address-family type protocol)))
@@ -285,7 +287,7 @@
   (flet ((make-client-socket (fd)
            (make-instance (active-class socket)
                           :address-family (socket-address-family socket)
-                          :file-descriptor fd
+                          :file-descriptor fd :dup nil
                           :external-format (or external-format
                                                (external-format-of socket))
                           :input-buffer-size input-buffer-size
@@ -316,10 +318,13 @@
         ((wait-connect ()
            (when (or (null  timeout)
                      (plusp timeout))
-             (iomux:wait-until-fd-ready (fd-of socket) :output timeout t)
-             (let ((errcode (socket-option socket :error)))
-               (unless (zerop errcode)
-                 (signal-socket-error errcode (fd-of socket)))))))
+             (handler-case
+                 (iomux:wait-until-fd-ready (fd-of socket) :output timeout t)
+               (iomux:poll-error ()
+                 (let ((errcode (socket-option socket :error)))
+                   (if (zerop errcode)
+                       (bug "Polling socket signalled an error but SO_ERROR is 0")
+                       (signal-socket-error errcode "connect" (fd-of socket)))))))))
       (ignore-some-conditions (iomux:poll-timeout)
         (handler-case
             (funcall thunk)
@@ -434,12 +439,12 @@
                      (if got-peer ss (null-pointer))
                      (if got-peer (sockaddr-size ss) 0)))
          (ignore-syscall-error ()
-           :test (lambda (c) (typep c 'isys:syscall-error))
            :report "Ignore this socket condition"
+           :test isys:syscall-error-p
            (return* 0))
          (retry-syscall (&optional (timeout 15.0d0))
-           :test (lambda (c) (typep c 'isys:syscall-error))
            :report "Try to send data again"
+           :test isys:syscall-error-p
            (when (plusp timeout)
              (iomux:wait-until-fd-ready fd :output timeout nil)))))))
 
@@ -505,12 +510,12 @@
        (restart-case
            (return* (%recvfrom fd buff-sap length flags ss size))
          (ignore-syscall-error ()
-           :test (lambda (c) (typep c 'isys:syscall-error))
            :report "Ignore this socket condition"
+           :test isys:syscall-error-p
            (return* 0))
          (retry-syscall (&optional (timeout 15.0d0))
-           :test (lambda (c) (typep c 'isys:syscall-error))
            :report "Try to receive data again"
+           :test isys:syscall-error-p
            (when (plusp timeout)
              (iomux:wait-until-fd-ready fd :input timeout nil)))))))
 

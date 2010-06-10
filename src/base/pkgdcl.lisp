@@ -1,4 +1,4 @@
-;;;; -*- Mode: Lisp; Syntax: ANSI-Common-Lisp; indent-tabs-mode: nil -*-
+;;;; -*- Mode: Lisp; indent-tabs-mode: nil -*-
 ;;;
 ;;; --- Package definition.
 ;;;
@@ -9,6 +9,8 @@
   (:use #:common-lisp :alexandria)
   (:shadow #:defun #:defmethod #:defmacro #:define-compiler-macro #:defconstant)
   (:export
+   ;; ASDF components
+   #:muffled-source-file #:cl-source-file
    ;; Conditions
    #:bug #:iolib-bug
    #:subtype-error #:subtype-error-datum #:subtype-error-expected-supertype
