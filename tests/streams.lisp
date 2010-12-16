@@ -33,7 +33,7 @@
 
 (in-suite :iolib.streams)
 
-(defclass my-file-stream (dual-channel-single-fd-gray-stream)
+(defclass my-file-stream (dual-channel-gray-stream)
   ((path :initarg :path :reader file-stream-path)))
 
 ;;; Very ad-hoc: doesn't do :DIRECTION :PROBE, or handle errors,
@@ -64,8 +64,7 @@
     (setf (isys:fd-nonblock fd) t)
     (make-instance 'my-file-stream
                    :path path
-                   :input-fd fd
-                   :output-fd fd
+                   :fd fd
                    :external-format external-format)))
 
 (defmacro with-open-file-stream ((var path &rest options) &body body)
@@ -91,11 +90,11 @@
 ;;; A list of test files where each entry consists of the name
 ;;; prefix and a list of encodings.
 (defvar *test-files*
-  '(("kafka" (#-cmu :utf-8 :latin-1 #|:cp1252|#))
-    ("tilton" (#-cmu :utf-8 :ascii))
-    ("hebrew" (#-cmu :utf-8 #|:latin-8|#))
-    ("russian" (#-cmu :utf-8 #|:koi8r|#))
-    ("unicode_demo" (#-cmu :utf-8 #|:utf-16 :utf-32|#))))
+  '(("kafka" (#-8bit-chars :utf-8 :latin-1 #|:cp1252|#))
+    ("tilton" (#-8bit-chars :utf-8 :ascii))
+    ("hebrew" (#-8bit-chars :utf-8 #|:latin-8|#))
+    ("russian" (#-8bit-chars :utf-8 #|:koi8r|#))
+    ("unicode_demo" (#-8bit-chars :utf-8 #|:utf-16 :utf-32|#))))
 
 ;;; For a name suffix FILE-NAME and a symbol SYMBOL denoting an
 ;;; encoding returns a list of pairs where the car is a full file name
@@ -136,8 +135,8 @@
 ;;; opened with the :DIRECTION keyword argument DIRECTION-IN, the
 ;;; output file is opened with the :DIRECTION keyword argument
 ;;; DIRECTION-OUT.
-(defun copy-file (path-in external-format-in path-out external-format-out
-                  direction-out direction-in)
+(defun %copy-file (path-in external-format-in path-out external-format-out
+                   direction-out direction-in)
   (with-open-file-stream (in path-in
                              :direction direction-in
                              :if-does-not-exist :error
@@ -175,9 +174,9 @@
                                    direction-in (ef-name external-format-out)
                                    direction-out)))
           (format *error-output* "~&;; ~A.~%" description)
-          (copy-file full-path-in external-format-in
-                     full-path-out external-format-out
-                     direction-out direction-in)
+          (%copy-file full-path-in external-format-in
+                      full-path-out external-format-out
+                      direction-out direction-in)
           (unless (file-equal full-path-out full-path-orig)
             (format *error-output* "~&;;   Test failed!!!~%")
             (return* nil)))))))

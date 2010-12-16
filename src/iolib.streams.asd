@@ -1,16 +1,17 @@
 ;;;; -*- Mode: Lisp; indent-tabs-mode: nil -*-
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (oos 'load-op :iolib.base))
-
-(defsystem :iolib.streams
+(asdf:defsystem :iolib.streams
   :description "Gray streams."
   :maintainer "Stelian Ionescu <sionescu@cddr.org>"
+  :version #.(with-open-file (f (merge-pathnames "../version.lisp-expr"
+                                                 (or *compile-file-pathname*
+                                                     *load-truename*)))
+               (read f))
   :licence "MIT"
+  :defsystem-depends-on (:iolib.asdf)
   :depends-on (:iolib.base :iolib.multiplex :cffi :trivial-garbage)
-  :default-component-class iolib.base:cl-source-file
-  :pathname #-asdf2 (merge-pathnames "streams/gray/" *load-truename*)
-            #+asdf2 "streams/gray/"
+  :default-component-class :iolib-source-file
+  :pathname "streams/gray/"
   :components
   ((:file "pkgdcl")
    (:file "classes" :depends-on ("pkgdcl"))

@@ -35,6 +35,22 @@
 
 
 ;;;-------------------------------------------------------------------------
+;;; PRINT-OBJECT
+;;;-------------------------------------------------------------------------
+
+(defmethod print-object ((o dual-channel-gray-stream) s)
+  (with-slots (fd (ef external-format) (ib input-buffer) (ob output-buffer))
+      o
+    (print-unreadable-object (o s :type nil :identity t)
+      (format s "~A ~S ~S ~S ~S/~S ~S ~S/~S ~S (~S ~S ~S)"
+              'dual-channel-gray-stream :fd fd
+              :ibuf (iobuf-length ib) (iobuf-size ib)
+              :obuf (iobuf-length ob) (iobuf-size ob)
+              :ef (babel-encodings:enc-name (babel:external-format-encoding ef))
+              :eol-style (babel:external-format-eol-style ef)))))
+
+
+;;;-------------------------------------------------------------------------
 ;;; Common Methods
 ;;;-------------------------------------------------------------------------
 
@@ -123,7 +139,7 @@
   (setf (dirtyp stream) nil))
 
 (defmethod stream-finish-output ((stream dual-channel-gray-stream))
-  (with-accessors ((fd output-fd-of)
+  (with-accessors ((fd fd-of)
                    (write-fn write-fn-of)
                    (ob output-buffer-of)
                    (dirtyp dirtyp))
@@ -133,7 +149,15 @@
     (setf dirtyp nil)))
 
 (defmethod stream-force-output ((stream dual-channel-gray-stream))
-  (setf (dirtyp stream) t))
+  (with-accessors ((fd fd-of)
+                   (write-fn write-fn-of)
+                   (ob output-buffer-of)
+                   (dirtyp dirtyp))
+      stream
+    (with-hangup-guard stream
+      (%write-octets-from-iobuf write-fn fd ob t))
+    (unless (iobuf-empty-p ob)
+      (setf dirtyp t))))
 
 (declaim (inline %write-sequence))
 (defun %write-sequence (stream seq start end)
@@ -163,7 +187,7 @@
   (setf (unread-index-of stream) (iobuf-start iobuf)))
 
 (defmethod stream-read-char ((stream dual-channel-gray-stream))
-  (with-accessors ((fd input-fd-of)
+  (with-accessors ((fd fd-of)
                    (ib input-buffer-of)
                    (read-fn read-fn-of)
                    (unread-index unread-index-of)
@@ -184,7 +208,7 @@
                (decode-one-char fd read-fn ib encoding))))))))
 
 (defmethod stream-read-char-no-hang ((stream dual-channel-gray-stream))
-  (with-accessors ((fd input-fd-of)
+  (with-accessors ((fd fd-of)
                    (read-fn read-fn-of)
                    (ib input-buffer-of)
                    (ef external-format-of))
@@ -287,7 +311,7 @@
 ;;;-------------------------------------------------------------------------
 
 (defmethod stream-read-byte ((stream dual-channel-gray-stream))
-  (with-accessors ((fd input-fd-of)
+  (with-accessors ((fd fd-of)
                    (read-fn read-fn-of)
                    (ib input-buffer-of))
       stream

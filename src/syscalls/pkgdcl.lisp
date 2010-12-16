@@ -8,12 +8,120 @@
 (defpackage :iolib.syscalls
   (:nicknames #:isys)
   (:use :iolib.base :cffi)
-  (:shadow #:open #:close #:read #:write #:listen #:truncate #:ftruncate #:time)
+  (:shadow #:open #:close #:read #:write #:listen
+           #:truncate #:ftruncate #:time)
+  (:import-from
+   :libfixposix
+
+   ;;;----------------------------------------------------------------------
+   ;;; C Types
+   ;;;----------------------------------------------------------------------
+
+   ;; Primitive type sizes
+   #:size-of-char
+   #:size-of-short
+   #:size-of-int
+   #:size-of-long
+   #:size-of-long-long
+   #:size-of-pointer
+
+   ;; POSIX Types
+   #:bool #:size-of-bool
+   #:size-t #:size-of-size-t
+   #:ssize-t #:size-of-ssize-t
+   #:off-t #:size-of-off-t
+   #:time-t #:size-of-time-t
+   #:suseconds-t #:size-of-suseconds-t
+
+   ;; LibFixPOSIX types
+
+   ;;;----------------------------------------------------------------------
+   ;;; Struct definitions, slots and accessors
+   ;;;----------------------------------------------------------------------
+
+   ;; timeval
+   #:timeval #:size-of-timeval
+   #:sec #:usec
+
+   ;; fd-set
+   #:fd-set #:size-of-fd-set
+
+
+   ;;;----------------------------------------------------------------------
+   ;;; C Constants
+   ;;;----------------------------------------------------------------------
+
+   ;; Syscall error codes
+   #:errno-values
+   #:e2big #:eacces #:eaddrinuse #:eaddrnotavail
+   #:eafnosupport #:ealready #:ebadf #:ebadmsg #:ebusy #:ecanceled
+   #:echild #:econnaborted #:econnrefused #:econnreset #:edeadlk
+   #:edestaddrreq #:edom #:edquot #:eexist #:efault #:efbig #:ehostdown
+   #:ehostunreach #:eidrm #:eilseq #:einprogress #:eintr #:einval #:eio
+   #:eisconn #:eisdir #:eloop #:emfile #:emlink #:emsgsize #:emultihop
+   #:enametoolong #:enetdown #:enetreset #:enetunreach #:enfile
+   #:enobufs #:enodata #:enodev #:enoent #:enoexec #:enolck #:enolink
+   #:enomem #:enomsg #:enonet #:enoprotoopt #:enospc #:enosr #:enostr
+   #:enosys #:enotconn #:enotdir #:enotempty #:enotsock #:enotsup #:enotty
+   #:enxio #:eopnotsupp #:eoverflow #:eperm #:epipe #:eproto
+   #:eprotonosupport #:eprototype #:erange #:erofs #:eshutdown #:espipe
+   #:esrch #:estale #:etime #:etimedout #:etxtbsy #:ewouldblock #:exdev
+   #:ebug
+
+   ;; Select()
+   #:fd-setsize
+
+   ;; Waitpid()
+   #:wnohang
+   #:wuntraced
+   #:wcontinued
+
+
+   ;;;----------------------------------------------------------------------
+   ;;; Syscalls
+   ;;;----------------------------------------------------------------------
+
+   ;; Errno-related functions
+   ;; Shadowed: strerror
+   #:errno
+
+   ;; Memory manipulation functions
+   #:memset
+   #:bzero
+   #:memcpy
+   #:memmove
+
+   ;; I/O Polling
+   ;; Shadowed: select, fd-isset
+   #:copy-fd-set
+   #:fd-clr
+   #:fd-set
+   #:fd-zero
+
+   ;; Signals
+   #:wifexited
+   #:wexitstatus
+   #:wifsignaled
+   #:wtermsig
+   #:wcoredump
+   #:wifstopped
+   #:wstopsig
+   #:wifcontinued
+
+   ;; CMSG readers
+   #:cmsg.firsthdr
+   #:cmsg.nxthdr
+   #:cmsg.align
+   #:cmsg.space
+   #:cmsg.len
+   #:cmsg.data
+   )
+
   (:export
 
-   ;;;--------------------------------------------------------------------------
+   ;;;----------------------------------------------------------------------
    ;;; C Types
-   ;;;--------------------------------------------------------------------------
+   ;;;----------------------------------------------------------------------
 
    ;; Primitive type sizes
    #:size-of-char
@@ -42,9 +150,9 @@
    #:nfds-t #:size-of-nfds-t
 
 
-   ;;;--------------------------------------------------------------------------
+   ;;;----------------------------------------------------------------------
    ;;; C Constants
-   ;;;--------------------------------------------------------------------------
+   ;;;----------------------------------------------------------------------
 
    ;; Open()
    #:o-rdonly
@@ -144,7 +252,7 @@
    #+linux #:sigrtmin
    #+linux #:sigrtmax
 
-   ;; waitpid()
+   ;; Waitpid()
    #:wnohang
    #:wuntraced
    #:wcontinued
@@ -288,39 +396,33 @@
 
    ;; Syscall error codes
    #:errno-values
-   #:eperm #:enoent #:esrch #:eintr #:eio #:enxio #:e2big #:enoexec
-   #:ebadf #:echild #:eagain #:enomem #:eacces #:efault #:ebusy #:eexist
-   #:exdev #:enodev #:enotdir #:eisdir #:einval #:enfile #:emfile
-   #:enotty #:efbig #:enospc #:espipe #:erofs #:emlink #:epipe #:edom
-   #:erange #:edeadlk #:enametoolong #:enolck #:enosys #:enotempty
-   #:echrng #:el2nsync #:el3hlt #:el3rst #:elnrng #:eunatch #:enocsi
-   #:el2hlt #:ebade #:ebadr #:exfull #:enoano #:ebadrqc #:ebadslt
-   #:edeadlock #:ebfont #:enostr #:enodata #:etime #:enosr #:enopkg
-   #:eadv #:esrmnt #:ecomm #:edotdot #:enotuniq #:ebadfd #:elibscn
-   #:elibmax #:elibexec #:eilseq #:erestart #:estrpipe #:euclean
-   #:enotnam #:enavail #:eremoteio #:enomedium #:emediumtype #:estale
-   #:enotblk #:etxtbsy #:eusers #:eloop #:ewouldblock #:enomsg #:eidrm
-   #:eproto #:emultihop #:ebadmsg #:eoverflow #:edquot #:einprogress
-   #:ealready #:eprotonosupport #:esocktnosupport #:enotsock
-   #:edestaddrreq #:emsgsize #:eprototype #:enoprotoopt #:eremote
-   #:enolink #:epfnosupport #:eafnosupport #:eaddrinuse #:eaddrnotavail
-   #:enetdown #:enetunreach #:enetreset #:econnaborted #:econnreset
-   #:eisconn #:enotconn #:eshutdown #:etoomanyrefs #:etimedout
-   #:econnrefused #:ehostdown #:ehostunreach #:enonet #:enobufs
-   #:eopnotsupp
+   #:e2big #:eacces #:eaddrinuse #:eaddrnotavail
+   #:eafnosupport #:ealready #:ebadf #:ebadmsg #:ebusy #:ecanceled
+   #:echild #:econnaborted #:econnrefused #:econnreset #:edeadlk
+   #:edestaddrreq #:edom #:edquot #:eexist #:efault #:efbig #:ehostdown
+   #:ehostunreach #:eidrm #:eilseq #:einprogress #:eintr #:einval #:eio
+   #:eisconn #:eisdir #:eloop #:emfile #:emlink #:emsgsize #:emultihop
+   #:enametoolong #:enetdown #:enetreset #:enetunreach #:enfile
+   #:enobufs #:enodata #:enodev #:enoent #:enoexec #:enolck #:enolink
+   #:enomem #:enomsg #:enonet #:enoprotoopt #:enospc #:enosr #:enostr
+   #:enosys #:enotconn #:enotdir #:enotempty #:enotsock #:enotsup #:enotty
+   #:enxio #:eopnotsupp #:eoverflow #:eperm #:epipe #:eproto
+   #:eprotonosupport #:eprototype #:erange #:erofs #:eshutdown #:espipe
+   #:esrch #:estale #:etime #:etimedout #:etxtbsy #:ewouldblock #:exdev
+   #:ebug
 
 
-   ;;;--------------------------------------------------------------------------
+   ;;;----------------------------------------------------------------------
    ;;; Syscalls
-   ;;;--------------------------------------------------------------------------
+   ;;;----------------------------------------------------------------------
 
    ;; Specials
    #:*default-open-mode*
    #:*environ*
 
    ;; Errno-related functions
-   #:strerror
    #:errno
+   #:strerror
 
    ;; Memory manipulation functions
    #:memset
@@ -402,8 +504,6 @@
 
    ;; Directory walking
    #:opendir
-   #-bsd #:fdopendir
-   #:dirfd
    #:closedir
    #:readdir
    #:rewinddir
@@ -449,6 +549,7 @@
    #:sigaction
    #:wifexited
    #:wexitstatus
+   #:wifsignaled
    #:wtermsig
    #:wcoredump
    #:wifstopped
@@ -481,18 +582,20 @@
    #:getgrgid
 
    ;; CMSG readers
+   #:cmsg.firsthdr
+   #:cmsg.nxthdr
+   #:cmsg.align
    #:cmsg.space
    #:cmsg.len
-   #:cmsg.firsthdr
    #:cmsg.data
 
 
-   ;;;--------------------------------------------------------------------------
+   ;;;----------------------------------------------------------------------
    ;;; Error conditions, wrappers and definers
-   ;;;--------------------------------------------------------------------------
+   ;;;----------------------------------------------------------------------
 
-   #:iolib-condition #:iolib-error
-   #:syscall-error #:code-of #:identifier-of #:message-of #:handle-of #:handle2-of
+   #:iolib-condition #:iolib-error #:syscall-error
+   #:code-of #:identifier-of #:message-of #:handle-of #:handle2-of
    #:make-syscall-error #:syscall-error-p #:get-syscall-error-condition
    #:signal-syscall-error #:signal-syscall-error/restart
    #:poll-error #:event-type-of #:poll-timeout
@@ -535,9 +638,9 @@
    #:repeat-upon-condition-decreasing-timeout
 
 
-   ;;;--------------------------------------------------------------------------
+   ;;;----------------------------------------------------------------------
    ;;; Struct definitions, slots and accessors
-   ;;;--------------------------------------------------------------------------
+   ;;;----------------------------------------------------------------------
 
    ;; timespec
    #:timespec #:size-of-timespec

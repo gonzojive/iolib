@@ -15,13 +15,19 @@
        (unless (<= ,start ,end ,length)
          (error "Wrong sequence bounds. start: ~S end: ~S" ,start ,end)))))
 
-(defun join (connector &rest strings)
-  (let ((c (string connector)))
-    (concatenate 'string (car strings)
-                 (reduce (lambda (str1 str2)
-                           (concatenate 'string str1 c str2))
-                         (cdr strings)
-                         :initial-value ""))))
+(labels
+    ((%join (connector strings)
+       (concatenate 'string (car strings)
+                    (reduce (lambda (str1 str2)
+                              (concatenate 'string str1 connector str2))
+                            (cdr strings)
+                            :initial-value ""))))
+  (declare (inline %join))
+  (declaim (inline join join*))
+  (defun join (connector &rest strings)
+    (%join (string connector) strings))
+  (defun join* (connector strings)
+    (%join (string connector) strings)))
 
 (defmacro shrink-vector (str size)
   #+allegro `(excl::.primcall 'sys::shrink-svector ,str ,size)
@@ -30,3 +36,11 @@
   #+sbcl `(sb-kernel:shrink-vector ,str ,size)
   #+scl `(common-lisp::shrink-vector ,str ,size)
   #-(or allegro cmu lispworks sbcl scl) `(subseq ,str 0 ,size))
+
+(declaim (inline full-string))
+(defun full-string (string)
+  (etypecase string
+    (string
+     (if (zerop (length string))
+         nil
+         string))))

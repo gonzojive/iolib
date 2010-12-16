@@ -16,11 +16,7 @@
 ;;; ERRNO-related functions
 ;;;-------------------------------------------------------------------------
 
-(defentrypoint (setf errno) (value)
-  "Set errno value."
-  (%set-errno value))
-
-(defsyscall (%strerror-r (#+linux "__xpg_strerror_r" "strerror_r"))
+(defsyscall (%strerror "lfp_strerror")
     :int
   (errnum :int)
   (buf    :pointer)
@@ -33,47 +29,20 @@
              (foreign-enum-value 'errno-values err)
              err)))
     (with-foreign-pointer-as-string ((buf bufsiz) 1024)
-      (%strerror-r errno buf bufsiz))))
+      (%strerror errno buf bufsiz))))
 
 (defmethod print-object ((e syscall-error) s)
   (with-slots (syscall code identifier message handle handle2) e
-    (if message
-        (format s "~A" message)
-        (print-unreadable-object (e s :type nil :identity nil)
-          (format s "Syscall ~S signalled error ~A(~S) ~S"
-                  syscall identifier (or code "[No code]")
-                  (or (strerror code) "[Can't get error string.]"))
-          (when handle (format s " FD=~A" handle))
-          (when handle2 (format s " FD2=~A" handle2))))))
-
-
-;;;-------------------------------------------------------------------------
-;;; Memory manipulation
-;;;-------------------------------------------------------------------------
-
-(defcfun* (memset "memset") :pointer
-  "Fill the first COUNT bytes of BUFFER with the constant VALUE."
-  (buffer :pointer)
-  (value  :int)
-  (count  size-t))
-
-(defentrypoint bzero (buffer count)
-  "Fill the first COUNT bytes of BUFFER with zeros."
-  (memset buffer 0 count))
-
-(defcfun* (memcpy "memcpy") :pointer
-  "Copy COUNT octets from SRC to DEST.
-The two memory areas must not overlap."
-  (dest :pointer)
-  (src  :pointer)
-  (count size-t))
-
-(defcfun* (memmove "memmove") :pointer
-  "Copy COUNT octets from SRC to DEST.
-The two memory areas may overlap."
-  (dest :pointer)
-  (src  :pointer)
-  (count size-t))
+    (print-unreadable-object (e s :type nil :identity nil)
+      (cond
+        (message
+         (format s "~A" message))
+        (t
+         (format s "Syscall ~S signalled error ~A(~S) ~S"
+                 syscall identifier (or code "[No code]")
+                 (or (strerror code) "[Can't get error string.]"))
+         (when handle (format s " FD=~A" handle))
+         (when handle2 (format s " FD2=~A" handle2)))))))
 
 
 ;;;-------------------------------------------------------------------------
@@ -108,7 +77,7 @@ The two memory areas may overlap."
   (iov    :pointer)
   (iovcnt :int))
 
-(defsyscall (pread (#+linux "pread64" "pread"))
+(defsyscall (pread "lfp_pread")
     (ssize-t :restart t :handle fd)
   "Read at most COUNT bytes from FD at offset OFFSET into the foreign area BUF."
   (fd     :int)
@@ -116,7 +85,7 @@ The two memory areas may overlap."
   (count  size-t)
   (offset off-t))
 
-(defsyscall (pwrite (#+linux "pwrite64" "pwrite"))
+(defsyscall (pwrite "lfp_pwrite")
     (ssize-t :restart t :handle fd)
   "Write at most COUNT bytes to FD at offset OFFSET from the foreign area BUF."
   (fd     :int)
@@ -129,10 +98,10 @@ The two memory areas may overlap."
 ;;; Files
 ;;;-------------------------------------------------------------------------
 
-(defsyscall (%open (#+linux "open64" "open"))
+(defsyscall (%open "lfp_open")
     (:int :restart t)
   (path  sstring)
-  (flags :int)
+  (flags :uint64)
   (mode  mode-t))
 
 (defvar *default-open-mode* #o666)
@@ -142,7 +111,7 @@ The two memory areas may overlap."
 \(default value is *DEFAULT-OPEN-MODE* - #o666)."
   (%open path flags mode))
 
-(defsyscall (creat (#+linux "creat64" "creat"))
+(defsyscall (creat "lfp_creat")
     (:int :restart t)
   "Create file PATH with permissions MODE and return the new FD."
   (path sstring)
@@ -167,7 +136,7 @@ The two memory areas may overlap."
   "Sets the umask to NEW-MODE and returns the old one."
   (new-mode mode-t))
 
-(defsyscall (lseek (#+linux "lseek64" "lseek"))
+(defsyscall (lseek "lfp_lseek")
     (off-t :handle fd)
   "Reposition the offset of the open file associated with the file descriptor FD
 to the argument OFFSET according to the directive WHENCE."
@@ -180,13 +149,13 @@ to the argument OFFSET according to the directive WHENCE."
   (path sstring)
   (mode :int))
 
-(defsyscall (truncate (#+linux "truncate64" "truncate"))
+(defsyscall (truncate "lfp_truncate")
     (:int :restart t)
   "Truncate the file PATH to a size of precisely LENGTH octets."
   (path   sstring)
   (length off-t))
 
-(defsyscall (ftruncate (#+linux "ftruncate64" "ftruncate"))
+(defsyscall (ftruncate "lfp_ftruncate")
     (:int :restart t :handle fd)
   "Truncate the file referenced by FD to a size of precisely LENGTH octets."
   (fd     :int)
@@ -271,24 +240,18 @@ to the argument OFFSET according to the directive WHENCE."
 
 (define-c-struct-wrapper stat ())
 
-(defsyscall (%stat (#+linux "__xstat64" "stat"))
+(defsyscall (%stat "lfp_stat")
     :int
-  #+linux
-  (version   :int)
   (file-name sstring)
   (buf       :pointer))
 
-(defsyscall (%fstat (#+linux "__fxstat64" "fstat"))
+(defsyscall (%fstat "lfp_fstat")
     (:int :handle fd)
-  #+linux
-  (version :int)
   (fd      :int)
   (buf     :pointer))
 
-(defsyscall (%lstat (#+linux "__lxstat64" "lstat"))
+(defsyscall (%lstat "lfp_lstat")
     :int
-  #+linux
-  (version   :int)
   (file-name sstring)
   (buf       :pointer))
 
@@ -296,7 +259,7 @@ to the argument OFFSET according to the directive WHENCE."
 ;;; argument to this function and use that to reuse a wrapper object.
 (defentrypoint funcall-stat (fn arg)
   (with-foreign-object (buf 'stat)
-    (funcall fn #+linux +stat-version+ arg buf)
+    (funcall fn arg buf)
     (make-instance 'stat :pointer buf)))
 
 (defentrypoint stat (path)
@@ -319,7 +282,7 @@ to the argument OFFSET according to the directive WHENCE."
   "Schedule a file's buffers to be written to disk."
   (fd :int))
 
-(defsyscall (%mkstemp (#+linux "mkstemp64" "mkstemp")) :int
+(defsyscall (%mkstemp "lfp_mkstemp") :int
   (template :pointer))
 
 (defentrypoint mkstemp (&optional (template ""))
@@ -415,7 +378,7 @@ Return two values: the file descriptor and the path of the temporary file."
     ((integerp arg) (%fcntl/int     fd cmd arg))
     ((pointerp arg) (%fcntl/pointer fd cmd arg))
     (t (error 'type-error :datum arg
-              :expected-type '(or integer foreign-pointer)))))
+              :expected-type '(or null integer foreign-pointer)))))
 
 (defentrypoint fd-nonblock (fd)
   (let ((current-flags (fcntl fd f-getfl)))
@@ -448,7 +411,8 @@ Return two values: the file descriptor and the path of the temporary file."
   (cond
     ((not argp)     (%ioctl/noarg   fd request))
     ((pointerp arg) (%ioctl/pointer fd request arg))
-    (t (error 'type-error :datum arg :expected-type 'foreign-pointer))))
+    (t (error 'type-error :datum arg
+              :expected-type '(or null foreign-pointer)))))
 
 (defentrypoint fd-open-p (fd)
   (handler-case
@@ -480,43 +444,17 @@ Return two values: the file descriptor and the path of the temporary file."
 ;;; File descriptor polling
 ;;;-------------------------------------------------------------------------
 
-(defsyscall (select "select") :int
+(defun fd-isset (fd fd-set)
+  (plusp (foreign-funcall "lfp_fd_isset" :int fd :pointer fd-set bool)))
+
+(defsyscall (select "lfp_select") :int
   "Scan for I/O activity on multiple file descriptors."
   (nfds      :int)
   (readfds   :pointer)
   (writefds  :pointer)
   (exceptfds :pointer)
-  (timeout   :pointer))
-
-(defentrypoint fd-zero (fd-set)
-  (bzero fd-set size-of-fd-set)
-  (values fd-set))
-
-(defentrypoint copy-fd-set (from to)
-  (memcpy to from size-of-fd-set)
-  (values to))
-
-(deftype select-file-descriptor ()
-  `(mod #.fd-setsize))
-
-(defentrypoint fd-isset (fd fd-set)
-  (multiple-value-bind (byte-off bit-off) (floor fd 8)
-    (let ((oldval (mem-aref fd-set :uint8 byte-off)))
-      (logbitp bit-off oldval))))
-
-(defentrypoint fd-clr (fd fd-set)
-  (multiple-value-bind (byte-off bit-off) (floor fd 8)
-    (let ((oldval (mem-aref fd-set :uint8 byte-off)))
-      (setf (mem-aref fd-set :uint8 byte-off)
-            (logandc2 oldval (ash 1 bit-off)))))
-  (values fd-set))
-
-(defentrypoint fd-set (fd fd-set)
-  (multiple-value-bind (byte-off bit-off) (floor fd 8)
-    (let ((oldval (mem-aref fd-set :uint8 byte-off)))
-      (setf (mem-aref fd-set :uint8 byte-off)
-            (logior oldval (ash 1 bit-off)))))
-  (values fd-set))
+  (timeout   :pointer)
+  (sigmask   :pointer))
 
 ;;; FIXME: Until a way to autodetect platform features is implemented
 (eval-when (:compile-toplevel :load-toplevel :execute)
@@ -580,16 +518,11 @@ Return two values: the file descriptor and the path of the temporary file."
   "Open directory PATH for listing of its contents."
   (path sstring))
 
-#-bsd
-(defsyscall (fdopendir "fdopendir") :pointer
-  "Open directory denoted by descriptor FD for listing of its contents."
-  (fd :int))
-
 (defsyscall (closedir "closedir") :int
   "Close directory DIR when done listing its contents."
   (dirp :pointer))
 
-(defsyscall (%readdir-r (#+linux "readdir64_r" "readdir_r"))
+(defsyscall (%readdir "lfp_readdir")
     (:int
      :error-predicate plusp
      :error-location :return)
@@ -600,7 +533,7 @@ Return two values: the file descriptor and the path of the temporary file."
 (defentrypoint readdir (dir)
   "Reads an item from the listing of directory DIR (reentrant)."
   (with-foreign-objects ((entry 'dirent) (result :pointer))
-    (%readdir-r dir entry result)
+    (%readdir dir entry result)
     (if (null-pointer-p (mem-ref result :pointer))
         nil
         (with-foreign-slots ((name type fileno) entry dirent)
@@ -626,7 +559,7 @@ Return two values: the file descriptor and the path of the temporary file."
 ;;; Memory mapping
 ;;;-------------------------------------------------------------------------
 
-(defsyscall (mmap (#+linux "mmap64" "mmap"))
+(defsyscall (mmap "lfp_mmap")
     (:pointer :handle fd)
   "Map file referenced by FD at offset OFFSET into address space of the
 calling process at address ADDR and length LENGTH.
@@ -737,7 +670,7 @@ processes mapping the same region."
 (defsyscall (setsid "setsid") pid-t
   "Create session and set process group id of the current process.")
 
-(defsyscall (%getrlimit (#+linux "getrlimit64" "getrlimit"))
+(defsyscall (%getrlimit "lfp_getrlimit")
     :int
   (resource :int)
   (rlimit   :pointer))
@@ -749,7 +682,7 @@ processes mapping the same region."
       (%getrlimit resource rl)
       (values cur max))))
 
-(defsyscall (%setrlimit (#+linux "setrlimit64" "setrlimit"))
+(defsyscall (%setrlimit "lfp_setrlimit")
     :int
   (resource :int)
   (rlimit   :pointer))
@@ -938,7 +871,7 @@ as indicated by WHICH and WHO to VALUE."
 
 
 ;;;-------------------------------------------------------------------------
-;;; Environement
+;;; Environment
 ;;;-------------------------------------------------------------------------
 
 (defcvar ("environ" :read-only t) (:pointer :string))

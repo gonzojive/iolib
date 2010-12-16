@@ -1,16 +1,17 @@
 ;;;; -*- Mode: Lisp; indent-tabs-mode: nil -*-
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (oos 'load-op :iolib.base))
-
-(defsystem :iolib.pathnames
+(asdf:defsystem :iolib.pathnames
   :description "New pathnames."
   :author "Stelian Ionescu <sionescu@cddr.org>"
+  :version #.(with-open-file (f (merge-pathnames "../version.lisp-expr"
+                                                 (or *compile-file-pathname*
+                                                     *load-truename*)))
+               (read f))
   :licence "MIT"
+  :defsystem-depends-on (:iolib.asdf)
   :depends-on (:iolib.base :iolib.syscalls)
-  :default-component-class iolib.base:cl-source-file
-  :pathname #-asdf2 (merge-pathnames "pathnames/" *load-truename*)
-            #+asdf2 "pathnames/"
+  :default-component-class :iolib-source-file
+  :pathname "pathnames/"
   :components
   ((:file "pkgdcl")
    (:file "file-path")

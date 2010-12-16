@@ -113,27 +113,21 @@
     (or (lastcar (nth-value 1 (split-root/nodes components)))
         ".")))
 
-(defun split-name/type (file)
-  (let* ((dotpos (position #\. file :start 1 :from-end t)))
+(defun split-name/type (path)
+  (let ((dotpos (position #\. path :start 1 :from-end t)))
     (cond
-      ((null dotpos)
-       (values file nil))
-      ((= (1+ dotpos) (length file))
-       (values (subseq file 0 dotpos) nil))
-      (t (values (subseq file 0 dotpos)
-                 (subseq file (1+ dotpos)))))))
+      ((or (null dotpos) (member path '("." "..") :test #'string=))
+       (values path nil))
+      (t (values (subseq path 0 dotpos)
+                 (full-string (subseq path (1+ dotpos))))))))
 
 (defun file-path-file-name (pathspec)
-  (let* ((file (file-path-file pathspec)))
-    (switch (file :test #'string=)
-      ("." ".." file)
-      (t (nth-value 0 (split-name/type file))))))
+  (let ((file (file-path-file pathspec)))
+    (nth-value 0 (split-name/type file))))
 
 (defun file-path-file-type (pathspec)
-  (let* ((file (file-path-file pathspec)))
-    (switch (file :test #'string=)
-      ("." ".." nil)
-      (t (nth-value 1 (split-name/type file))))))
+  (let ((file (file-path-file pathspec)))
+    (nth-value 1 (split-name/type file))))
 
 
 ;;;-------------------------------------------------------------------------
@@ -155,7 +149,11 @@
              :reason "Null filenames are not valid"))
     (when (find-if (lambda (c) (member c +directory-delimiters+)) node)
       (error 'invalid-file-path :path node
-             :reason "Path components cannot contain directory delimiters(#\\ and #\/)"))))
+             :reason (format nil
+                             "Path components cannot contain delimiters(~A)"
+                             (join* " and "
+                                    (mapcar 'prin1-to-string
+                                            +directory-delimiters+)))))))
 
 
 ;;;-------------------------------------------------------------------------
@@ -197,8 +195,8 @@
 
 (defmethod print-object ((path file-path) stream)
   (let ((ns (file-path-namestring path)))
-    (if *print-escape*
-        (format stream "#/p/~S" ns)
+    (if (or *print-readably* *print-escape*)
+        (format stream "#/~S/~S" 'p ns)
         (write-string ns stream))))
 
 (define-literal-reader p (stream)

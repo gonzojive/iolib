@@ -2,7 +2,7 @@
 ;;;
 ;;; --- Grovelling for socket constants and types.
 ;;;
-;;; Copyright (C) 2005-2006, Matthew Backes  <lucca@accela.net>
+;;; Copyright (C) 2005-2006, Emily Backes  <lucca@accela.net>
 ;;; Copyright (C) 2005-2006, Dan Knapp  <dankna@accela.net>
 ;;; Copyright (C) 2007, Stelian Ionescu  <sionescu@cddr.org>
 ;;; Copyright (C) 2007, Luis Oliveira  <loliveira@common-lisp.net>
@@ -37,50 +37,49 @@
 (in-package :iolib.sockets)
 
 (constantenum socket-error-values
-  ((:eprotonosupport "EPROTONOSUPPORT"))
-  ((:esocktnosupport "ESOCKTNOSUPPORT"))
-  ((:enotsock "ENOTSOCK"))
-  ((:edestaddrreq "EDESTADDRREQ"))
-  ((:emsgsize "EMSGSIZE"))
-  ((:eprototype "EPROTOTYPE"))
-  ((:enoprotoopt "ENOPROTOOPT"))
-  ((:eremote "EREMOTE"))
-  ((:enolink "ENOLINK"))
-  ((:epfnosupport "EPFNOSUPPORT"))
-  ((:eafnosupport "EAFNOSUPPORT"))
-  ((:eaddrinuse "EADDRINUSE"))
-  ((:eaddrnotavail "EADDRNOTAVAIL"))
-  ((:enetdown "ENETDOWN"))
-  ((:enetunreach "ENETUNREACH"))
-  ((:enetreset "ENETRESET"))
-  ((:econnaborted "ECONNABORTED"))
-  ((:econnreset "ECONNRESET"))
-  ((:eisconn "EISCONN"))
-  ((:enotconn "ENOTCONN"))
-  ((:eshutdown "ESHUTDOWN"))
-  ((:etoomanyrefs "ETOOMANYREFS"))
-  ((:etimedout "ETIMEDOUT"))
-  ((:econnrefused "ECONNREFUSED"))
-  ((:ehostdown "EHOSTDOWN"))
-  ((:ehostunreach "EHOSTUNREACH"))
-  ((:enonet "ENONET") :optional t)
-  ((:enobufs "ENOBUFS"))
-  ((:eopnotsupp "EOPNOTSUPP"))
-  ((:eagain "EAGAIN"))
-  ((:ebadf "EBADF"))
-  ((:einval "EINVAL"))
-  ((:enomem "ENOMEM"))
-  ((:eacces "EACCES"))
-  ((:efault "EFAULT"))
-  ((:emfile "EMFILE"))
-  ((:einprogress "EINPROGRESS"))
-  ((:ealready "EALREADY"))
-  ((:eloop "ELOOP"))
-  ((:enametoolong "ENAMETOOLONG"))
-  ((:enotempty "ENOTEMPTY"))
-  ((:eusers "EUSERS"))
-  ((:edquot "EDQUOT"))
-  ((:estale "ESTALE")))
+  (:eprotonosupport "EPROTONOSUPPORT")
+  (:esocktnosupport "ESOCKTNOSUPPORT")
+  (:enotsock "ENOTSOCK")
+  (:edestaddrreq "EDESTADDRREQ")
+  (:emsgsize "EMSGSIZE")
+  (:eprototype "EPROTOTYPE")
+  (:enoprotoopt "ENOPROTOOPT")
+  (:eremote "EREMOTE")
+  (:enolink "ENOLINK")
+  (:epfnosupport "EPFNOSUPPORT")
+  (:eafnosupport "EAFNOSUPPORT")
+  (:eaddrinuse "EADDRINUSE")
+  (:eaddrnotavail "EADDRNOTAVAIL")
+  (:enetdown "ENETDOWN")
+  (:enetunreach "ENETUNREACH")
+  (:enetreset "ENETRESET")
+  (:econnaborted "ECONNABORTED")
+  (:econnreset "ECONNRESET")
+  (:eisconn "EISCONN")
+  (:enotconn "ENOTCONN")
+  (:eshutdown "ESHUTDOWN")
+  (:etoomanyrefs "ETOOMANYREFS")
+  (:etimedout "ETIMEDOUT")
+  (:econnrefused "ECONNREFUSED")
+  (:ehostdown "EHOSTDOWN")
+  (:ehostunreach "EHOSTUNREACH")
+  (:enonet "ENONET" :optional t)
+  (:enobufs "ENOBUFS")
+  (:eopnotsupp "EOPNOTSUPP")
+  (:ebadf "EBADF")
+  (:einval "EINVAL")
+  (:enomem "ENOMEM")
+  (:eacces "EACCES")
+  (:efault "EFAULT")
+  (:emfile "EMFILE")
+  (:einprogress "EINPROGRESS")
+  (:ealready "EALREADY")
+  (:eloop "ELOOP")
+  (:enametoolong "ENAMETOOLONG")
+  (:enotempty "ENOTEMPTY")
+  (:eusers "EUSERS")
+  (:edquot "EDQUOT")
+  (:estale "ESTALE"))
 
 ;;;; sys/socket.h
 
@@ -299,9 +298,7 @@
 
 (cunion in6-addr "struct in6_addr"
   "An IPv6 address."
-  (addr8  "s6_addr"   :type :uint8  :count :auto)
-  (addr16 "s6_addr16" :type :uint16 :count :auto)
-  (addr32 "s6_addr32" :type :uint32 :count :auto))
+  (addr8  "s6_addr"   :type :uint8  :count :auto))
 
 (cstruct sockaddr-in6 "struct sockaddr_in6"
   "An IPv6 socket address."
@@ -352,17 +349,17 @@
 
 #+linux
 (cenum connstates
-  ((:tcp-established "TCP_ESTABLISHED"))
-  ((:tcp-syn-sent "TCP_SYN_SENT"))
-  ((:tcp-syn-recv "TCP_SYN_RECV"))
-  ((:tcp-fin-wait1 "TCP_FIN_WAIT1"))
-  ((:tcp-fin-wait2 "TCP_FIN_WAIT2"))
-  ((:tcp-time-wait "TCP_TIME_WAIT"))
-  ((:tcp-close "TCP_CLOSE"))
-  ((:tcp-close-wait "TCP_CLOSE_WAIT"))
-  ((:tcp-last-ack "TCP_LAST_ACK"))
-  ((:tcp-listen "TCP_LISTEN"))
-  ((:tcp-closing "TCP_CLOSING")))
+  (:tcp-established "TCP_ESTABLISHED")
+  (:tcp-syn-sent "TCP_SYN_SENT")
+  (:tcp-syn-recv "TCP_SYN_RECV")
+  (:tcp-fin-wait1 "TCP_FIN_WAIT1")
+  (:tcp-fin-wait2 "TCP_FIN_WAIT2")
+  (:tcp-time-wait "TCP_TIME_WAIT")
+  (:tcp-close "TCP_CLOSE")
+  (:tcp-close-wait "TCP_CLOSE_WAIT")
+  (:tcp-last-ack "TCP_LAST_ACK")
+  (:tcp-listen "TCP_LISTEN")
+  (:tcp-closing "TCP_CLOSING"))
 
 ;;;; from net/if.h
 

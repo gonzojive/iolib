@@ -1,22 +1,22 @@
 ;;;; -*- Mode: Lisp; indent-tabs-mode: nil -*-
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (oos 'load-op :iolib.base)
-  (oos 'load-op :cffi-grovel))
-
-(defsystem :iolib.sockets
+(asdf:defsystem :iolib.sockets
   :description "Socket library."
   :author "Stelian Ionescu <sionescu@cddr.org>"
   :maintainer "Stelian Ionescu <sionescu@cddr.org>"
+  :version #.(with-open-file (f (merge-pathnames "../version.lisp-expr"
+                                                 (or *compile-file-pathname*
+                                                     *load-truename*)))
+               (read f))
   :licence "MIT"
+  :defsystem-depends-on (:iolib.asdf :iolib-grovel)
   :depends-on (:iolib.base :iolib.syscalls :iolib.streams
-               :babel :cffi :cffi-grovel :bordeaux-threads)
-  :default-component-class iolib.base:cl-source-file
-  :pathname #-asdf2 (merge-pathnames "sockets/" *load-truename*)
-            #+asdf2 "sockets/"
+               :babel :cffi :iolib-grovel :bordeaux-threads)
+  :default-component-class :iolib-source-file
+  :pathname "sockets/"
   :components
   ((:file "pkgdcl")
-   (cffi-grovel:grovel-file "grovel" :depends-on ("pkgdcl"))
+   (:iolib-grovel-file "grovel" :depends-on ("pkgdcl"))
    (:file "conditions" :depends-on ("pkgdcl" "grovel"))
    (:file "bsd" :depends-on ("pkgdcl" "grovel" "conditions"))
    (:file "common" :depends-on ("pkgdcl" "grovel" "bsd"))

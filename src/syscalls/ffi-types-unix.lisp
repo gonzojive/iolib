@@ -32,12 +32,9 @@
 ;;; POSIX types
 ;;;-------------------------------------------------------------------------
 
-(ctype size-t "size_t")
-(ctype ssize-t "ssize_t")
 (ctype pid-t "pid_t")
 (ctype uid-t "uid_t")
 (ctype gid-t "gid_t")
-(ctype off-t "off_t")
 (ctype mode-t "mode_t")
 
 
@@ -86,9 +83,6 @@
 ;;; time.h
 ;;;-------------------------------------------------------------------------
 
-(ctype time-t "time_t")
-(ctype suseconds-t "suseconds_t")
-
 #-darwin
 (progn
   (ctype clockid-t "clockid_t")
@@ -126,9 +120,6 @@
   (atime   "st_atime"   :type time-t)
   (mtime   "st_mtime"   :type time-t)
   (ctime   "st_ctime"   :type time-t))
-
-#+linux
-(constant (+stat-version+ "_STAT_VER"))
 
 (constant (s-irwxu "S_IRWXU")
           :documentation "read, write, execute/search by owner")
@@ -190,7 +181,6 @@
           :documentation "stop signal generated from keyboard.")
 (constant (sigcont "SIGCONT") :documentation "continue after stop.")
 (constant (sigchld "SIGCHLD") :documentation "child status has changed.")
-(constant (sigcld "SIGCLD") :documentation "child status has changed.") ; same as above
 (constant (sigttin "SIGTTIN")
           :documentation "background read attempted from control terminal.")
 (constant (sigttou "SIGTTOU")
@@ -248,21 +238,6 @@
 ;;;-------------------------------------------------------------------------
 
 (ctype useconds-t "useconds_t")
-
-
-;;;-------------------------------------------------------------------------
-;;; sys/select.h
-;;;-------------------------------------------------------------------------
-
-(cstruct timeval "struct timeval"
-  "UNIX time specification in seconds and microseconds."
-  (sec  "tv_sec"  :type time-t)
-  (usec "tv_usec" :type suseconds-t))
-
-(constant (fd-setsize "FD_SETSIZE"))
-
-(cstruct fd-set "fd_set"
-  (bits "fds_bits" :type :uint8 :count :auto))
 
 
 ;;;-------------------------------------------------------------------------
@@ -559,147 +534,3 @@
   (passwd "gr_passwd" :type sstring)
   (gid    "gr_gid"    :type gid-t)
   (mem    "gr_mem"    :type :pointer))
-
-
-;;;-------------------------------------------------------------------------
-;;; errno.h
-;;;-------------------------------------------------------------------------
-
-(include "errno.h")
-
-(constantenum (errno-values :define-constants t)
-  ((:eperm "EPERM"))
-  ((:enoent "ENOENT"))
-  ((:esrch "ESRCH"))
-  ((:eintr "EINTR"))
-  ((:eio "EIO"))
-  ((:enxio "ENXIO"))
-  ((:e2big "E2BIG"))
-  ((:enoexec "ENOEXEC"))
-  ((:ebadf "EBADF"))
-  ((:echild "ECHILD"))
-  ((:eagain "EAGAIN"))
-  ((:enomem "ENOMEM"))
-  ((:eacces "EACCES"))
-  ((:efault "EFAULT"))
-  ((:ebusy "EBUSY"))
-  ((:eexist "EEXIST"))
-  ((:exdev "EXDEV"))
-  ((:enodev "ENODEV"))
-  ((:enotdir "ENOTDIR"))
-  ((:eisdir "EISDIR"))
-  ((:einval "EINVAL"))
-  ((:enfile "ENFILE"))
-  ((:emfile "EMFILE"))
-  ((:enotty "ENOTTY"))
-  ((:efbig "EFBIG"))
-  ((:enospc "ENOSPC"))
-  ((:espipe "ESPIPE"))
-  ((:erofs "EROFS"))
-  ((:emlink "EMLINK"))
-  ((:epipe "EPIPE"))
-  ((:edom "EDOM"))
-  ((:erange "ERANGE"))
-  ((:edeadlk "EDEADLK"))
-  ((:enametoolong "ENAMETOOLONG"))
-  ((:enolck "ENOLCK"))
-  ((:enosys "ENOSYS"))
-  ((:enotempty "ENOTEMPTY"))
-  ((:echrng "ECHRNG") :optional t)
-  ((:el2nsync "EL2NSYNC") :optional t)
-  ((:el3hlt "EL3HLT") :optional t)
-  ((:el3rst "EL3RST") :optional t)
-  ((:elnrng "ELNRNG") :optional t)
-  ((:eunatch "EUNATCH") :optional t)
-  ((:enocsi "ENOCSI") :optional t)
-  ((:el2hlt "EL2HLT") :optional t)
-  ((:ebade "EBADE") :optional t)
-  ((:ebadr "EBADR") :optional t)
-  ((:exfull "EXFULL") :optional t)
-  ((:enoano "ENOANO") :optional t)
-  ((:ebadrqc "EBADRQC") :optional t)
-  ((:ebadslt "EBADSLT") :optional t)
-  ((:edeadlock "EDEADLOCK") :optional t)
-  ((:ebfont "EBFONT") :optional t)
-  ((:enostr "ENOSTR") :optional t)
-  ((:enodata "ENODATA") :optional t)
-  ((:etime "ETIME") :optional t)
-  ((:enosr "ENOSR") :optional t)
-  ((:enopkg "ENOPKG") :optional t)
-  ((:eadv "EADV") :optional t)
-  ((:esrmnt "ESRMNT") :optional t)
-  ((:ecomm "ECOMM") :optional t)
-  ((:edotdot "EDOTDOT") :optional t)
-  ((:enotuniq "ENOTUNIQ") :optional t)
-  ((:ebadfd "EBADFD") :optional t)
-  ((:eremchg "EREMCHG") :optional t)
-  ((:elibacc "ELIBACC") :optional t)
-  ((:elibbad "ELIBBAD") :optional t)
-  ((:elibscn "ELIBSCN") :optional t)
-  ((:elibmax "ELIBMAX") :optional t)
-  ((:elibexec "ELIBEXEC") :optional t)
-  ((:eilseq "EILSEQ"))
-  ((:erestart "ERESTART") :optional t)
-  ((:estrpipe "ESTRPIPE") :optional t)
-  ((:euclean "EUCLEAN") :optional t)
-  ((:enotnam "ENOTNAM") :optional t)
-  ((:enavail "ENAVAIL") :optional t)
-  ((:eremoteio "EREMOTEIO") :optional t)
-  ((:enomedium "ENOMEDIUM") :optional t)
-  ((:emediumtype "EMEDIUMTYPE") :optional t)
-  ((:estale "ESTALE"))
-  ((:enotblk "ENOTBLK"))
-  ((:etxtbsy "ETXTBSY"))
-  ((:eusers "EUSERS"))
-  ((:eloop "ELOOP"))
-  ((:ewouldblock "EWOULDBLOCK"))
-  ((:enomsg "ENOMSG"))
-  ((:eidrm "EIDRM"))
-  ((:eproto "EPROTO"))
-  ((:emultihop "EMULTIHOP"))
-  ((:ebadmsg "EBADMSG"))
-  ((:eoverflow "EOVERFLOW"))
-  ((:edquot "EDQUOT"))
-  ((:einprogress "EINPROGRESS"))
-  ((:ealready "EALREADY"))
-  ;; TODO: These errors are related to sockets.  However they
-  ;; might not be unique to them.  Remove those that are unique
-  ;; and keep those that might be set elsewhere.
-  ((:eprotonosupport "EPROTONOSUPPORT"))
-  ((:esocktnosupport "ESOCKTNOSUPPORT"))
-  ((:enotsock "ENOTSOCK"))
-  ((:edestaddrreq "EDESTADDRREQ"))
-  ((:emsgsize "EMSGSIZE"))
-  ((:eprototype "EPROTOTYPE"))
-  ((:enoprotoopt "ENOPROTOOPT"))
-  ((:eremote "EREMOTE"))
-  ((:enolink "ENOLINK"))
-  ((:epfnosupport "EPFNOSUPPORT"))
-  ((:eafnosupport "EAFNOSUPPORT"))
-  ((:eaddrinuse "EADDRINUSE"))
-  ((:eaddrnotavail "EADDRNOTAVAIL"))
-  ((:enetdown "ENETDOWN"))
-  ((:enetunreach "ENETUNREACH"))
-  ((:enetreset "ENETRESET"))
-  ((:econnaborted "ECONNABORTED"))
-  ((:econnreset "ECONNRESET"))
-  ((:eisconn "EISCONN"))
-  ((:enotconn "ENOTCONN"))
-  ((:eshutdown "ESHUTDOWN"))
-  ((:etoomanyrefs "ETOOMANYREFS"))
-  ((:etimedout "ETIMEDOUT"))
-  ((:econnrefused "ECONNREFUSED"))
-  ((:ehostdown "EHOSTDOWN"))
-  ((:ehostunreach "EHOSTUNREACH"))
-  ((:enonet "ENONET") :optional t)
-  ((:enobufs "ENOBUFS"))
-  ((:enotsup "ENOTSUP"))
-  ((:eopnotsupp "EOPNOTSUPP")))
-
-;;;-------------------------------------------------------------------------
-;;; sys/wait.h
-;;;-------------------------------------------------------------------------
-
-(constant (wnohang "WNOHANG"))
-(constant (wuntraced "WUNTRACED"))
-(constant (wcontinued "WCONTINUED"))

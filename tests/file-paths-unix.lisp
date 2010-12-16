@@ -97,7 +97,7 @@
 
 (test (file-path.expand-user.2 :compile-at :definition-time)
   (is-file-path (parse-file-path "~root" :expand-user t)
-                (:root "root")))
+                (:root #+darwin "var" "root")))
 
 (test (file-path.expand-user.3 :compile-at :definition-time)
   (is-file-path (parse-file-path "/~root")
@@ -113,7 +113,7 @@
 
 (test (file-path.expand-user.6 :compile-at :definition-time)
   (is-file-path (parse-file-path "~root/a" :expand-user t)
-                (:root "root" "a")))
+                (:root #+darwin "var" "root" "a")))
 
 
 (test (file-path.namestring.1 :compile-at :definition-time)
@@ -277,10 +277,10 @@
   (is (equal "." (file-path-file-name (file-path "./")))))
 
 (test (file-path.file-name.4 :compile-at :definition-time)
-  (is (equal "." (file-path-file-name (file-path "..")))))
+  (is (equal ".." (file-path-file-name (file-path "..")))))
 
 (test (file-path.file-name.5 :compile-at :definition-time)
-  (is (equal "." (file-path-file-name (file-path "../")))))
+  (is (equal ".." (file-path-file-name (file-path "../")))))
 
 (test (file-path.file-name.6 :compile-at :definition-time)
   (is (equal "a" (file-path-file-name (file-path "a")))))

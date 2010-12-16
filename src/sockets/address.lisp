@@ -162,8 +162,6 @@ ADDRESS-NAME reader."))
                (decf end))
              (values start end start-i trailing-colon-p
                      tokens-from-leading-or-trailing-zeros)))
-         (emptyp (string)
-           (= 0 (length string)))
          ;; we need to use this instead of dotted-to-vector because
          ;; abbreviated IPv4 addresses are invalid in this context.
          (ipv4-string-to-ub16-list (string)
@@ -339,7 +337,7 @@ returned unmodified."
 
 (defmethod print-object ((address inet-address) stream)
   (let ((namestring (address-to-string address)))
-    (if *print-escape*
+    (if (or *print-readably* *print-escape*)
         (format stream "#/~S/~A" 'ip namestring)
         (write-string namestring stream))))
 

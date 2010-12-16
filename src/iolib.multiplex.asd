@@ -1,17 +1,18 @@
 ;;;; -*- Mode: Lisp; indent-tabs-mode: nil -*-
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (oos 'load-op :iolib.base))
-
-(defsystem :iolib.multiplex
+(asdf:defsystem :iolib.multiplex
   :description "I/O multiplexing library."
   :author "Stelian Ionescu <sionescu@cddr.org>"
   :maintainer "Stelian Ionescu <sionescu@cddr.org>"
+  :version #.(with-open-file (f (merge-pathnames "../version.lisp-expr"
+                                                 (or *compile-file-pathname*
+                                                     *load-truename*)))
+               (read f))
   :licence "MIT"
+  :defsystem-depends-on (:iolib.asdf)
   :depends-on (:iolib.base :iolib.syscalls :cffi)
-  :default-component-class iolib.base:cl-source-file
-  :pathname #-asdf2 (merge-pathnames "multiplex/" *load-truename*)
-            #+asdf2 "multiplex/"
+  :default-component-class :iolib-source-file
+  :pathname "multiplex/"
   :components
   ((:file "pkgdcl")
 
